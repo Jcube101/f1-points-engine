@@ -17,7 +17,7 @@ async def get_drivers(db: Session = Depends(get_db)):
 
     Response: { success, data: [driver objects] }
     """
-    drivers = db.query(Driver).all()
+    drivers = db.query(Driver).filter(Driver.price > 0).all()
     result = []
     for d in drivers:
         # Compute xP from last 3 race fantasy points

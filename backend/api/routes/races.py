@@ -1,18 +1,27 @@
 """API routes for race calendar and results."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_db
 from backend.data.models import Race, RaceResult, Driver
+from backend.core.config import CURRENT_SEASON
 
 router = APIRouter(prefix="/api/races", tags=["races"])
 
 
 @router.get("")
-async def get_races(db: Session = Depends(get_db)):
-    """Return the full race calendar for the current season."""
-    races = db.query(Race).order_by(Race.round_number).all()
+async def get_races(
+    season: int = Query(default=CURRENT_SEASON),
+    db: Session = Depends(get_db),
+):
+    """Return the race calendar for a given season (defaults to current season)."""
+    races = (
+        db.query(Race)
+        .filter_by(season=season)
+        .order_by(Race.round_number)
+        .all()
+    )
     return {
         "success": True,
         "data": [

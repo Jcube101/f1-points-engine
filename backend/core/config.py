@@ -4,7 +4,7 @@ OPENF1_BASE_URL = "https://api.openf1.org/v1"
 ERGAST_BASE_URL = "https://ergast.com/api/f1"
 F1_FANTASY_BASE_URL = "https://fantasy.formula1.com/feeds"
 
-CURRENT_SEASON = 2025
+CURRENT_SEASON = 2026
 BUDGET_CAP = 100_000_000  # $100M
 
 # Scoring tables

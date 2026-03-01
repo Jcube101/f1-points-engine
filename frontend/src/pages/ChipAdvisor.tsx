@@ -9,7 +9,7 @@ const ALL_CHIPS = ['DRS Boost', 'Extra DRS', 'No Negative', 'Wildcard', 'Limitle
 
 export default function ChipAdvisor() {
   const team = useTeam()
-  const { data: races = [] } = useQuery({ queryKey: ['races'], queryFn: fetchRaces })
+  const { data: races = [] } = useQuery({ queryKey: ['races'], queryFn: () => fetchRaces(2026) })
 
   const [selectedRaceId, setSelectedRaceId] = useState<number | null>(null)
   const [chipsRemaining, setChipsRemaining] = useState<string[]>(ALL_CHIPS)

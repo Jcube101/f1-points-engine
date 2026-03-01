@@ -32,8 +32,8 @@ export async function fetchConstructors(): Promise<Constructor[]> {
 
 // ─── Races ───────────────────────────────────────────────────────────────────
 
-export async function fetchRaces(): Promise<Race[]> {
-  const res = await http.get<ApiResponse<Race[]>>('/races')
+export async function fetchRaces(season = 2026): Promise<Race[]> {
+  const res = await http.get<ApiResponse<Race[]>>('/races', { params: { season } })
   return res.data.data
 }
 
@@ -83,18 +83,18 @@ export async function fetchChipRecommendation(payload: {
 
 // ─── Standings ───────────────────────────────────────────────────────────────
 
-export async function fetchWDC(): Promise<WDCStanding[]> {
-  const res = await http.get<ApiResponse<WDCStanding[]>>('/standings/wdc')
+export async function fetchWDC(season = 2026): Promise<WDCStanding[]> {
+  const res = await http.get<ApiResponse<WDCStanding[]>>('/standings/wdc', { params: { season } })
   return res.data.data
 }
 
-export async function fetchWCC(): Promise<WCCStanding[]> {
-  const res = await http.get<ApiResponse<WCCStanding[]>>('/standings/wcc')
+export async function fetchWCC(season = 2026): Promise<WCCStanding[]> {
+  const res = await http.get<ApiResponse<WCCStanding[]>>('/standings/wcc', { params: { season } })
   return res.data.data
 }
 
-export async function fetchValueLeaderboard(): Promise<ValueLeaderboardEntry[]> {
-  const res = await http.get<ApiResponse<ValueLeaderboardEntry[]>>('/standings/value')
+export async function fetchValueLeaderboard(season = 2026): Promise<ValueLeaderboardEntry[]> {
+  const res = await http.get<ApiResponse<ValueLeaderboardEntry[]>>('/standings/value', { params: { season } })
   return res.data.data
 }
 
