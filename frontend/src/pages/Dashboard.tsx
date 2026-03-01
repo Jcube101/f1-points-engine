@@ -4,7 +4,7 @@ import { fetchDrivers, fetchRaces, fetchLiveStatus } from '../lib/api'
 
 export default function Dashboard() {
   const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: fetchDrivers })
-  const { data: races = [] } = useQuery({ queryKey: ['races'], queryFn: fetchRaces })
+  const { data: races = [] } = useQuery({ queryKey: ['races'], queryFn: () => fetchRaces(2026) })
   const { data: liveStatus } = useQuery({
     queryKey: ['liveStatus'],
     queryFn: fetchLiveStatus,

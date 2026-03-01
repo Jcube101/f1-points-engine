@@ -9,6 +9,7 @@ import {
 import type { WDCStanding } from '../lib/types'
 
 type Tab = 'wdc' | 'wcc' | 'value'
+type Season = 2025 | 2026
 
 // Mock points-over-time data (in Phase 2 this would come from actual historical results)
 function buildProgressionData(standings: WDCStanding[]) {
@@ -28,18 +29,19 @@ const COLORS = ['#E8002D', '#FF8000', '#3671C6', '#27F4D2', '#229971']
 
 export default function Standings() {
   const [tab, setTab] = useState<Tab>('wdc')
+  const [season, setSeason] = useState<Season>(2026)
 
   const { data: wdc = [], isLoading: wdcLoading } = useQuery({
-    queryKey: ['wdc'],
-    queryFn: fetchWDC,
+    queryKey: ['wdc', season],
+    queryFn: () => fetchWDC(season),
   })
   const { data: wcc = [], isLoading: wccLoading } = useQuery({
-    queryKey: ['wcc'],
-    queryFn: fetchWCC,
+    queryKey: ['wcc', season],
+    queryFn: () => fetchWCC(season),
   })
   const { data: valueData = [], isLoading: valueLoading } = useQuery({
-    queryKey: ['valueLeaderboard'],
-    queryFn: fetchValueLeaderboard,
+    queryKey: ['valueLeaderboard', season],
+    queryFn: () => fetchValueLeaderboard(season),
   })
 
   const chartData = wdc.length > 0 ? buildProgressionData(wdc) : []
@@ -47,7 +49,26 @@ export default function Standings() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-white">Standings</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-white">Standings</h1>
+
+        {/* Season toggle */}
+        <div className="flex gap-1 bg-gray-800 rounded-lg p-1 border border-gray-700">
+          {([2025, 2026] as Season[]).map((yr) => (
+            <button
+              key={yr}
+              onClick={() => setSeason(yr)}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                season === yr
+                  ? 'bg-red-600 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {yr}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Tab navigation */}
       <div className="flex gap-2 border-b border-gray-700 pb-2">
@@ -74,8 +95,17 @@ export default function Standings() {
             <p className="text-gray-400">Loading standings...</p>
           ) : wdc.length === 0 ? (
             <div className="bg-gray-800 rounded-lg p-6 text-center border border-gray-700">
-              <p className="text-gray-400">WDC standings unavailable (Ergast API offline)</p>
-              <p className="text-xs text-gray-600 mt-1">Using seed data as baseline</p>
+              {season === 2026 ? (
+                <>
+                  <p className="text-gray-400">2026 season has not started yet</p>
+                  <p className="text-xs text-gray-600 mt-1">Switch to 2025 to view last year's championship</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-400">WDC standings unavailable (Ergast API offline)</p>
+                  <p className="text-xs text-gray-600 mt-1">Using seed data as baseline</p>
+                </>
+              )}
             </div>
           ) : (
             <>
@@ -144,7 +174,14 @@ export default function Standings() {
             <p className="text-gray-400">Loading...</p>
           ) : wcc.length === 0 ? (
             <div className="bg-gray-800 rounded-lg p-6 text-center border border-gray-700">
-              <p className="text-gray-400">WCC standings unavailable (Ergast API offline)</p>
+              {season === 2026 ? (
+                <>
+                  <p className="text-gray-400">2026 season has not started yet</p>
+                  <p className="text-xs text-gray-600 mt-1">Switch to 2025 to view last year's championship</p>
+                </>
+              ) : (
+                <p className="text-gray-400">WCC standings unavailable (Ergast API offline)</p>
+              )}
             </div>
           ) : (
             <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
@@ -180,7 +217,9 @@ export default function Standings() {
           ) : (
             <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
               <p className="text-xs text-gray-500 mb-3">
-                Value score = xP ÷ price ($M). Higher is better.
+                {season === 2025
+                  ? 'Value score = xP ÷ price ($M) based on 2025 season performance. Higher is better.'
+                  : 'Value score = xP ÷ price ($M) based on 2025 history. Higher is better. No 2026 races yet.'}
               </p>
               <ValueRankings entries={valueData} />
             </div>
