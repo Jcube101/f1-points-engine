@@ -1,0 +1,16 @@
+# Railway deployment configuration for F1 Points Engine
+# Docs: https://docs.railway.app/reference/config-as-code
+
+[build]
+# Use the multi-stage Dockerfile at the repo root.
+# Stage 1 builds the React frontend; Stage 2 runs the FastAPI backend
+# which serves both the API (/api/*) and the React app (/).
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Railway injects $PORT automatically — uvicorn reads it from the CMD in the Dockerfile.
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
