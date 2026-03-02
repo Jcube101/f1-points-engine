@@ -5,5 +5,14 @@
 @layer base {
   body {
     @apply bg-gray-950 text-gray-100;
+    /* Minimum 14px base font for readability on mobile */
+    font-size: max(14px, 1rem);
+    /* Prevent tap highlight flash on mobile */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent text size adjustment on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
   }
 }

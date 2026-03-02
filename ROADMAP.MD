@@ -1,6 +1,6 @@
 # F1 Points Engine — Roadmap
 
-## Phase 1: Core Fantasy Tool ✅ *Build this first*
+## Phase 1: Core Fantasy Tool ✅ *Complete*
 
 Everything a fantasy player needs to compete seriously.
 
@@ -97,14 +97,27 @@ Makes the tool useful for every F1 fan, not just fantasy players. This is the di
 
 ---
 
+## Mobile-First UI ✅ *Complete*
+
+The app is optimised for use during live race weekends on a phone:
+
+- Bottom navigation bar on mobile (5 tabs: Home, Team, Live, Standings, Chips)
+- Team Builder: single-column cards, sticky footer with DRS pill row + budget bar + full-width Optimize button
+- Live Race Tracker: sticky session progress bar, tap-to-expand rows (code + pos + pts → full breakdown), accessible ▲/▼ delta indicators
+- Standings: horizontally scrollable championship chart, sticky first column on tables, top-5 default with "Show all" toggle
+- Chip Advisor: full-width recommendation card, prominent confidence badge, 52px action button
+- All tap targets ≥44px, minimum 14px body font, `overflow-x-hidden` root
+
+---
+
 ## Future Ideas (Unscheduled)
 
 - **ML chip advisor**: replace rules with a model trained on historical chip outcomes
 - **Multi-user leagues**: leaderboard for groups of friends using the tool together
 - **Push notifications**: "Race starts in 1 hour — set your DRS Boost" reminder
 - **Price prediction model**: predict next week's price changes using xP vs current price
-- **Mobile-optimised view**: PWA with offline support for race weekends
+- **PWA offline support**: service worker for race weekend use without connectivity
 
 ---
 
-*Roadmap version: 1.0 | Last updated: March 2026*
+*Roadmap version: 1.1 | Last updated: March 2026*

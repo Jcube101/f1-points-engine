@@ -141,11 +141,11 @@ Use PuLP to solve two objectives, returned together from `POST /api/team/optimiz
 Projected points = `xP` score from `expected_points.py` (see Feature 5).
 
 ### UI (TeamBuilder.tsx)
-- Driver + constructor cards showing price, team, xP, value score
-- Manual pick or "Optimize" button to auto-fill
-- Real-time budget tracker
+- Driver + constructor cards showing price, team, xP, value score — single column on mobile
+- Manual pick or "Optimize" button (full-width sticky footer on mobile)
+- Real-time budget tracker — sticky bar at bottom on mobile, always visible while scrolling
 - Toggle between Max Points / Best Value modes
-- DRS Boost selector (pick one driver from your 5)
+- DRS Boost selector — horizontally scrollable pill row (not a dropdown) on mobile
 - Differential flag: highlight drivers with high xP but likely low ownership
 
 ---
@@ -266,9 +266,10 @@ After each race weekend, fetch official fantasy scores from the F1 Fantasy API a
 
 ### UI (LiveRace.tsx)
 - Ranked table of all drivers + constructors with live fantasy points
+- Mobile condensed view: driver code (3 letters) + position + fantasy points; tap row to expand full breakdown
 - Highlight user's selected team (stored in localStorage)
-- Session progress bar (Lap X of Y, or Q1/Q2/Q3 indicator)
-- Green/red delta indicators since last update
+- Session progress bar — sticky at top of screen (Lap X of Y, or Q1/Q2/Q3 indicator)
+- Delta indicators: ▲/▼ + colour for accessibility (not colour alone)
 - Auto-updates via WebSocket, no manual refresh needed
 
 ---
@@ -407,6 +408,17 @@ The repo must include a `CLAUDE.md` at root. See separate CLAUDE.md file.
 - Provide working seed data so app is usable immediately after setup
 - WebSocket must degrade gracefully if OpenF1 is down
 - Never inline scoring math in route handlers
+
+## Mobile Requirements (Phase 1 complete)
+
+- Primary target: 390px wide screen (iPhone 14 baseline) — `xs` breakpoint in Tailwind
+- Bottom navigation bar on mobile (5 tabs with SVG icons); full horizontal navbar on sm+ screens
+- All tap targets minimum 44×44px; minimum 14px body font; no horizontal overflow
+- `overflow-x-hidden` on root; `-webkit-tap-highlight-color: transparent`
+- Team Builder: single-column cards, sticky footer with DRS pills + budget bar + optimize button
+- Live Race: sticky session progress bar, tap-to-expand rows, ▲/▼ delta text for accessibility
+- Standings: chart in `overflow-x-auto` wrapper with `min-w-[480px]`, sticky first table column, top-5 with "Show all" toggle
+- Chip Advisor: full-width on mobile (`md:grid-cols-2` collapses to 1 col), 52px minimum action button, prominent confidence badge
 
 ---
 

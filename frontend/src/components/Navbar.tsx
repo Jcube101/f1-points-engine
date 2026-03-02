@@ -11,27 +11,35 @@ const links = [
 
 export default function Navbar() {
   return (
-    <nav className="bg-gray-900 border-b border-red-600 border-b-2">
-      <div className="container mx-auto px-4 flex items-center gap-6 h-14">
-        <span className="text-red-500 font-bold text-lg tracking-tight">F1 Points Engine</span>
-        <div className="flex gap-1 overflow-x-auto">
-          {links.map((l) => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              className={({ isActive }) =>
-                `px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap transition-colors ${
-                  isActive
-                    ? 'bg-red-600 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                }`
-              }
-            >
-              {l.label}
-            </NavLink>
-          ))}
-        </div>
+    <>
+      {/* Mobile: brand-only top bar — navigation is via BottomNav */}
+      <div className="sm:hidden bg-gray-900 border-b border-gray-800 px-4 h-12 flex items-center">
+        <span className="text-red-500 font-bold text-base tracking-tight">F1 Points Engine</span>
       </div>
-    </nav>
+
+      {/* Desktop: full navbar with links */}
+      <nav className="hidden sm:block bg-gray-900 border-b-2 border-red-600">
+        <div className="container mx-auto px-4 flex items-center gap-6 h-14">
+          <span className="text-red-500 font-bold text-lg tracking-tight">F1 Points Engine</span>
+          <div className="flex gap-1 overflow-x-auto">
+            {links.map((l) => (
+              <NavLink
+                key={l.to}
+                to={l.to}
+                className={({ isActive }) =>
+                  `px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap transition-colors ${
+                    isActive
+                      ? 'bg-red-600 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  }`
+                }
+              >
+                {l.label}
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      </nav>
+    </>
   )
 }

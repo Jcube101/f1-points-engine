@@ -16,17 +16,17 @@ export default function LiveRace() {
   const userDriverCodes = team.drivers.map((d) => d.code)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Live Race</h1>
         <div className="flex items-center gap-2 text-sm">
-          <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
-          <span className="text-gray-400">{connected ? 'Connected' : 'Disconnected'}</span>
+          <span className={`w-2.5 h-2.5 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          <span className="text-gray-400 text-xs font-medium">{connected ? 'Connected' : 'Disconnected'}</span>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-950/30 border border-red-700 rounded-lg p-3 text-sm text-red-400">
+        <div className="bg-red-950/30 border border-red-700 rounded-lg p-3 text-sm text-red-400 font-medium">
           {error}
         </div>
       )}
@@ -50,10 +50,15 @@ export default function LiveRace() {
       {userDriverCodes.length > 0 && (
         <div className="bg-gray-800 rounded-lg p-3 border border-gray-700 text-sm">
           <p className="text-gray-400">
-            Your team: <span className="text-white">{userDriverCodes.join(' · ')}</span>
-            <span className="text-gray-600 ml-2">(highlighted with ★)</span>
+            Your team: <span className="text-white font-medium">{userDriverCodes.join(' · ')}</span>
+            <span className="text-gray-600 ml-2 text-xs">(rows marked ★)</span>
           </p>
         </div>
+      )}
+
+      {/* Tap-to-expand hint */}
+      {snapshot && (
+        <p className="text-xs text-gray-600 text-center">Tap any row to see full points breakdown</p>
       )}
     </div>
   )

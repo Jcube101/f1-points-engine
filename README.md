@@ -9,10 +9,11 @@ F1 Points Engine is an open-source fantasy F1 tool that helps you win your fanta
 | Feature | What it does |
 |---|---|
 | **Team Optimizer** | Picks the mathematically best 5-driver + 2-constructor team within budget using PuLP ILP (Max Points) or a greedy value ranker (Best Value) |
-| **Live Race Tracker** | Streams real-time fantasy points from OpenF1 every 30 seconds via WebSocket — shows your team highlighted, fastest lap, positions gained |
+| **Live Race Tracker** | Streams real-time fantasy points from OpenF1 every 30 seconds via WebSocket — shows your team highlighted, fastest lap, positions gained. Tap any row for full breakdown |
 | **Chip Advisor** | Rule-based recommendations (street circuit → No Negative, banked transfers → Wildcard) with confidence rating and plain-English reason |
-| **Standings** | F1 WDC + WCC standings with a points progression chart, plus a fantasy value leaderboard ranked by xP per $M |
+| **Standings** | F1 WDC + WCC standings (2025 + 2026 season toggle) with a scrollable points progression chart, plus a fantasy value leaderboard ranked by xP per $M |
 | **Score Validator** | Cross-checks our computed scores against the official F1 Fantasy API after each race and shows any discrepancies |
+| **Mobile-first UI** | Designed for 390px screens (iPhone 14 baseline) — bottom navigation bar, sticky budget tracker, swipeable DRS pills, expandable live rows, and horizontally scrollable charts |
 
 ---
 
@@ -185,7 +186,7 @@ f1-points-engine/
 ├── frontend/
 │   └── src/
 │       ├── pages/           # Dashboard, TeamBuilder, LiveRace, Standings, ...
-│       ├── components/      # DriverCard, TeamSummary, LiveTicker, ...
+│       ├── components/      # DriverCard, TeamSummary, LiveTicker, BottomNav, ...
 │       └── hooks/           # useTeam (Zustand), useLiveRace (WebSocket), useOptimizer
 ├── railway.toml             # Railway deployment config
 ├── build.sh                 # Railway build + start script
@@ -194,11 +195,26 @@ f1-points-engine/
 
 ---
 
+## Mobile Experience
+
+The app is optimised for use during race weekends on your phone (390px iPhone 14 baseline):
+
+- **Bottom navigation bar** on mobile (Home · Team · Live · Standings · Chips); full top navbar on desktop
+- **Team Builder**: cards stack single-column; sticky footer shows DRS pills + budget + Optimize button
+- **Live Race**: sticky session/lap progress bar; tap any row to expand full points breakdown; accessible delta indicators (▲/▼ + colour)
+- **Standings**: championship chart is horizontally scrollable; tables have sticky first column; top-5 default with "Show all" toggle
+- **Chip Advisor**: full-width recommendation card, prominent confidence badge, 52px minimum action button
+
+All tap targets are ≥44px. No horizontal overflow. Font minimum 14px.
+
+---
+
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.MD) for the full phased plan:
 
 - **Phase 1** ✅ — Team optimizer, live race tracker, chip advisor, standings, score validator
+- **Mobile UI** ✅ — Full mobile-first redesign: bottom nav, sticky footers, expandable rows
 - **Phase 2** 🔜 — Circuit intelligence, differential finder, form vs luck detector, transfer planner
 - **Phase 3** 🔮 — Championship simulator with Monte Carlo odds, scenario builder, season replay
 
