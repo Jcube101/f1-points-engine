@@ -13,8 +13,11 @@ export default function DriverCard({ driver, selected, onSelect, showXP = true }
   return (
     <div
       onClick={() => onSelect?.(driver)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onSelect?.(driver)}
       className={`
-        relative rounded-lg p-3 border cursor-pointer transition-all
+        relative rounded-lg p-3 border min-h-[72px] transition-all
         ${selected
           ? 'border-red-500 bg-red-950/30'
           : 'border-gray-700 bg-gray-800 hover:border-gray-500'
@@ -30,8 +33,8 @@ export default function DriverCard({ driver, selected, onSelect, showXP = true }
       <div className="pl-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-semibold text-sm text-white">{driver.name}</p>
-            <p className="text-xs text-gray-400">{driver.team_name}</p>
+            <p className="font-semibold text-sm text-white leading-tight">{driver.name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{driver.team_name}</p>
           </div>
           <div className="text-right">
             <p className="text-sm font-bold text-green-400">${priceM}M</p>

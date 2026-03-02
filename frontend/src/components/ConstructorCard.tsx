@@ -13,7 +13,7 @@ export default function ConstructorCard({ constructor: c, selected, onSelect }: 
     <div
       onClick={() => onSelect?.(c)}
       className={`
-        relative rounded-lg p-3 border transition-all
+        relative rounded-lg p-3 border min-h-[64px] transition-all
         ${selected
           ? 'border-red-500 bg-red-950/30'
           : 'border-gray-700 bg-gray-800 hover:border-gray-500'

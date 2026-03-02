@@ -103,7 +103,7 @@ export default function Dashboard() {
           <Link
             key={card.to}
             to={card.to}
-            className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-red-500 transition-colors group"
+            className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-red-500 transition-colors group min-h-[72px]"
           >
             <h3 className="font-semibold text-white group-hover:text-red-400 transition-colors">
               {card.title}
