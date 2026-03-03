@@ -12,8 +12,14 @@ export default function Dashboard() {
   })
 
   const topDrivers = [...drivers].sort((a, b) => b.xp - a.xp).slice(0, 5)
-  const upcomingRaces = races.filter((r) => new Date(r.date) >= new Date()).slice(0, 3)
-  const nextRace = upcomingRaces[0]
+  const today = new Date()
+  const allUpcoming = races.filter((r) => new Date(r.date) >= today)
+  const nextRace = allUpcoming[0]
+  const upcomingRaces = allUpcoming.slice(0, 3)
+  const seasonStarted = races.some((r) => new Date(r.date) < today)
+  const daysUntil = nextRace
+    ? Math.max(0, Math.ceil((new Date(nextRace.date).getTime() - today.getTime()) / 86_400_000))
+    : null
 
   return (
     <div className="space-y-6">
@@ -31,10 +37,15 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Drivers" value={drivers.length} />
         <StatCard label="Races in Season" value={races.length} />
-        <StatCard label="Races Remaining" value={upcomingRaces.length} />
+        <StatCard label="Races Remaining" value={allUpcoming.length} />
         <StatCard
-          label="Next Race"
-          value={nextRace?.name.replace(' Grand Prix', ' GP') ?? 'Season over'}
+          label={seasonStarted ? 'Next Race' : 'Season Starts'}
+          value={
+            nextRace
+              ? `${nextRace.name.replace(' Grand Prix', ' GP')} — R${nextRace.round_number}`
+              : 'Season over'
+          }
+          subtitle={daysUntil !== null ? `In ${daysUntil} day${daysUntil === 1 ? '' : 's'}` : undefined}
           small
         />
       </div>
@@ -116,11 +127,12 @@ export default function Dashboard() {
   )
 }
 
-function StatCard({ label, value, small }: { label: string; value: string | number; small?: boolean }) {
+function StatCard({ label, value, small, subtitle }: { label: string; value: string | number; small?: boolean; subtitle?: string }) {
   return (
     <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
       <p className="text-xs text-gray-400">{label}</p>
       <p className={`font-bold text-white mt-1 ${small ? 'text-sm' : 'text-2xl'}`}>{value}</p>
+      {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
     </div>
   )
 }

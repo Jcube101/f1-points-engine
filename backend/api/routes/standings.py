@@ -59,6 +59,62 @@ async def get_wcc(season: int = Query(default=CURRENT_SEASON)):
     return {"success": True, "data": result}
 
 
+@router.get("/progression")
+async def get_season_progression(
+    season: int = Query(default=CURRENT_SEASON),
+    db: Session = Depends(get_db),
+):
+    """
+    Return cumulative fantasy points per driver per round for a given season.
+
+    Computes progressive totals from the FantasyPoints table — does not rely on
+    the Ergast API. Used to render the championship points progression chart.
+
+    Response: { success, data: [{ round, round_name, <driver_code>: cumulative_pts, ... }] }
+    """
+    races = db.query(Race).filter_by(season=season).order_by(Race.round_number.asc()).all()
+    if not races:
+        return {"success": True, "data": []}
+
+    race_ids = [r.id for r in races]
+    fp_rows = db.query(FantasyPoints).filter(FantasyPoints.race_id.in_(race_ids)).all()
+
+    race_info: dict[int, tuple[int, str]] = {
+        r.id: (r.round_number, r.name) for r in races
+    }
+
+    all_driver_ids = list({fp.driver_id for fp in fp_rows})
+    drivers_in_data = db.query(Driver).filter(Driver.id.in_(all_driver_ids)).all()
+    driver_id_to_code: dict[int, str] = {d.id: d.code for d in drivers_in_data}
+
+    # Aggregate points per round per driver
+    per_round: dict[int, dict[str, float]] = {}
+    for fp in fp_rows:
+        if fp.race_id not in race_info:
+            continue
+        round_num, _ = race_info[fp.race_id]
+        code = driver_id_to_code.get(fp.driver_id)
+        if not code:
+            continue
+        per_round.setdefault(round_num, {})[code] = fp.total_pts
+
+    # Build cumulative progression across rounds
+    result = []
+    cumulative: dict[str, float] = {}
+    for race in races:
+        rn = race.round_number
+        for code, pts in per_round.get(rn, {}).items():
+            cumulative[code] = round(cumulative.get(code, 0.0) + pts, 1)
+        entry: dict[str, object] = {
+            "round": rn,
+            "round_name": race.name.replace(" Grand Prix", " GP"),
+        }
+        entry.update(cumulative)
+        result.append(entry)
+
+    return {"success": True, "data": result}
+
+
 @router.get("/value")
 async def get_value_leaderboard(
     season: int = Query(default=CURRENT_SEASON),

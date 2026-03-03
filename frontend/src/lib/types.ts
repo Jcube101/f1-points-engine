@@ -163,6 +163,14 @@ export interface LiveSnapshot {
   constructors: unknown[]
 }
 
+/** One round's entry in the championship points progression chart. */
+export interface ProgressionRound {
+  round: number
+  round_name: string
+  /** Cumulative fantasy points per driver, keyed by driver code (e.g. "VER", "NOR"). */
+  [driverCode: string]: number | string
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data: T
