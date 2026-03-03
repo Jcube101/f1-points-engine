@@ -356,6 +356,8 @@ ScoreValidation: id, race_id, driver_id, our_score, official_score, delta, valid
 | POST | /api/chips/recommend | Chip strategy recommendation |
 | GET | /api/standings/wdc | Driver championship standings |
 | GET | /api/standings/wcc | Constructor championship standings |
+| GET | /api/standings/progression | Cumulative fantasy pts per driver per round (DB-sourced, all 24 rounds) |
+| GET | /api/standings/value | Fantasy value leaderboard (xP per $M) |
 | GET | /api/validation/latest | Our score vs official score diff |
 | GET | /api/live/status | Is a session currently live? |
 | WS | /ws/live | WebSocket: live race point updates |
