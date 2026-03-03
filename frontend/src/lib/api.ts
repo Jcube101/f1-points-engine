@@ -4,7 +4,7 @@ import type {
   Driver, Constructor, Race, RaceResult, OptimizedTeam,
   FantasyPointsBreakdown, ChipRecommendation,
   WDCStanding, WCCStanding, ValueLeaderboardEntry,
-  ScoreValidationEntry, ApiResponse,
+  ScoreValidationEntry, ProgressionRound, ApiResponse,
 } from './types'
 
 const BASE_URL = '/api'
@@ -95,6 +95,11 @@ export async function fetchWCC(season = 2026): Promise<WCCStanding[]> {
 
 export async function fetchValueLeaderboard(season = 2026): Promise<ValueLeaderboardEntry[]> {
   const res = await http.get<ApiResponse<ValueLeaderboardEntry[]>>('/standings/value', { params: { season } })
+  return res.data.data
+}
+
+export async function fetchProgression(season = 2026): Promise<ProgressionRound[]> {
+  const res = await http.get<ApiResponse<ProgressionRound[]>>('/standings/progression', { params: { season } })
   return res.data.data
 }
 

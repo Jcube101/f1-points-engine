@@ -51,7 +51,7 @@ export default function TeamBuilder() {
   const budgetPct = Math.min(100, (spent / BUDGET) * 100)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-44 sm:pb-0">
       {/* Header — desktop shows optimize button here */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Team Builder</h1>

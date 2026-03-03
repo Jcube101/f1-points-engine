@@ -60,10 +60,13 @@ DRIVER_PRICES: dict[str, float] = {
     "nico_hulkenberg":     6_800_000,
     "gabriel_bortoleto":   6_500_000,
     "liam_lawson":         6_400_000,
-    "ayumu_lindblad":      6_200_000,
+    "arvid_lindblad":      6_200_000,
     "franco_colapinto":    6_200_000,
     "sergio_perez":        6_000_000,
     "valtteri_bottas":     5_800_000,
+    # 2025-only drivers — seeded for historical results, not on 2026 grid
+    "yuki_tsunoda":        0,
+    "jack_doohan":         0,
     "default":            10_000_000,
 }
 
@@ -193,19 +196,22 @@ FALLBACK_DRIVERS = [
     {"driverId": "george_russell",    "code": "RUS", "givenName": "George",    "familyName": "Russell",     "nationality": "British",       "constructorId": "mercedes"},
     {"driverId": "kimi_antonelli",    "code": "ANT", "givenName": "Kimi",      "familyName": "Antonelli",   "nationality": "Italian",       "constructorId": "mercedes"},
     {"driverId": "pierre_gasly",      "code": "GAS", "givenName": "Pierre",    "familyName": "Gasly",       "nationality": "French",        "constructorId": "alpine"},
-    {"driverId": "sergio_perez",      "code": "PER", "givenName": "Sergio",    "familyName": "Perez",       "nationality": "Mexican",       "constructorId": "alpine"},
+    {"driverId": "franco_colapinto",  "code": "COL", "givenName": "Franco",    "familyName": "Colapinto",   "nationality": "Argentine",     "constructorId": "alpine"},
     {"driverId": "carlos_sainz",      "code": "SAI", "givenName": "Carlos",    "familyName": "Sainz",       "nationality": "Spanish",       "constructorId": "williams"},
     {"driverId": "alexander_albon",   "code": "ALB", "givenName": "Alexander", "familyName": "Albon",       "nationality": "Thai",          "constructorId": "williams"},
     {"driverId": "fernando_alonso",   "code": "ALO", "givenName": "Fernando",  "familyName": "Alonso",      "nationality": "Spanish",       "constructorId": "aston_martin"},
     {"driverId": "lance_stroll",      "code": "STR", "givenName": "Lance",     "familyName": "Stroll",      "nationality": "Canadian",      "constructorId": "aston_martin"},
     {"driverId": "oliver_bearman",    "code": "BEA", "givenName": "Oliver",    "familyName": "Bearman",     "nationality": "British",       "constructorId": "haas"},
     {"driverId": "esteban_ocon",      "code": "OCO", "givenName": "Esteban",   "familyName": "Ocon",        "nationality": "French",        "constructorId": "haas"},
+    {"driverId": "nico_hulkenberg",   "code": "HUL", "givenName": "Nico",      "familyName": "Hulkenberg",  "nationality": "German",        "constructorId": "audi"},
     {"driverId": "gabriel_bortoleto", "code": "BOR", "givenName": "Gabriel",   "familyName": "Bortoleto",   "nationality": "Brazilian",     "constructorId": "audi"},
-    {"driverId": "valtteri_bottas",   "code": "BOT", "givenName": "Valtteri",  "familyName": "Bottas",      "nationality": "Finnish",       "constructorId": "audi"},
     {"driverId": "liam_lawson",       "code": "LAW", "givenName": "Liam",      "familyName": "Lawson",      "nationality": "New Zealander", "constructorId": "rb"},
-    {"driverId": "ayumu_lindblad",    "code": "LIN", "givenName": "Ayumu",     "familyName": "Lindblad",    "nationality": "Swedish",       "constructorId": "rb"},
-    {"driverId": "nico_hulkenberg",   "code": "HUL", "givenName": "Nico",      "familyName": "Hulkenberg",  "nationality": "German",        "constructorId": "cadillac"},
-    {"driverId": "franco_colapinto",  "code": "COL", "givenName": "Franco",    "familyName": "Colapinto",   "nationality": "Argentine",     "constructorId": "cadillac"},
+    {"driverId": "arvid_lindblad",    "code": "LIN", "givenName": "Arvid",     "familyName": "Lindblad",    "nationality": "Swedish",       "constructorId": "rb"},
+    {"driverId": "sergio_perez",      "code": "PER", "givenName": "Sergio",    "familyName": "Perez",       "nationality": "Mexican",       "constructorId": "cadillac"},
+    {"driverId": "valtteri_bottas",   "code": "BOT", "givenName": "Valtteri",  "familyName": "Bottas",      "nationality": "Finnish",       "constructorId": "cadillac"},
+    # 2025-only drivers — needed in DB to hold historical race results
+    {"driverId": "yuki_tsunoda",      "code": "TSU", "givenName": "Yuki",      "familyName": "Tsunoda",     "nationality": "Japanese",      "constructorId": "rb"},
+    {"driverId": "jack_doohan",       "code": "DOO", "givenName": "Jack",      "familyName": "Doohan",      "nationality": "Australian",    "constructorId": "alpine"},
 ]
 
 # ─── 2026 constructors (11 teams) ─────────────────────────────────────────────
@@ -277,6 +283,20 @@ FALLBACK_CALENDAR_2026 = [
     {"round": "23", "raceName": "Qatar Grand Prix",          "Circuit": {"circuitName": "Losail"},        "date": "2026-11-29", "season": "2026"},
     {"round": "24", "raceName": "Abu Dhabi Grand Prix",      "Circuit": {"circuitName": "Yas Marina"},    "date": "2026-12-06", "season": "2026"},
 ]
+
+
+def get_2025_constructor(driver_code: str, round_num: int) -> str:
+    """
+    Return the 2025 constructor key for a driver, handling mid-season swaps.
+
+    Lawson/Tsunoda swap: Lawson drove Red Bull for rounds 1–2, then returned to Racing
+    Bulls from round 3. Tsunoda replaced him at Red Bull from round 3 onwards.
+    """
+    if driver_code == "LAW":
+        return "red_bull" if round_num <= 2 else "rb"
+    if driver_code == "TSU":
+        return "rb" if round_num <= 2 else "red_bull"
+    return DRIVER_CONSTRUCTOR_2025.get(driver_code, "")
 
 
 def generate_2025_season_results() -> list[dict]:
@@ -506,8 +526,8 @@ def seed_results(
             logger.debug("  Skipping %s round %d: no race/driver id", driver_code, round_num)
             continue
 
-        # Use 2025 team membership, not current 2026 assignment
-        constructor_key_2025 = DRIVER_CONSTRUCTOR_2025.get(driver_code, "")
+        # Use 2025 team membership, not current 2026 assignment (handles LAW/TSU swap)
+        constructor_key_2025 = get_2025_constructor(driver_code, round_num)
         constructor_id = constructor_id_map.get(constructor_key_2025)
         if not constructor_id:
             logger.warning("  No constructor for %s (%s)", driver_code, constructor_key_2025)
