@@ -18,7 +18,7 @@ F1 Points Engine is an open source web app that helps F1 fans win their fantasy 
 
 ## Current Phase
 
-**Phase 1 + Mobile UI** are complete. See `ROADMAP.md` for what is in scope.
+**Phase 1 + Mobile UI** are complete and stable (all known data/UI bugs resolved). See `ROADMAP.MD` for what is in scope.
 Do not build Phase 2 or Phase 3 features unless explicitly instructed.
 
 ---
@@ -131,7 +131,11 @@ frontend/tailwind.config.ts      ← xs breakpoint (390px), scrollbar-none utili
 ### Data & Seeding
 - Seed script (`backend/seed.py`) seeds both seasons in one run — idempotent (safe to re-run)
 - 2026 roster: 22 drivers across 11 constructors (includes Cadillac; Sauber renamed Audi)
+  - Key assignments: Colapinto→Alpine, Perez/Bottas→Cadillac, Hulkenberg/Bortoleto→Audi, Lawson/Lindblad→Racing Bulls
+  - `arvid_lindblad` (not ayumu) — Swedish, Racing Bulls
+- 2025-only drivers (price=0, not on 2026 grid): `yuki_tsunoda` (TSU), `jack_doohan` (DOO) — seeded in DB to preserve 2025 race results
 - 2025 results: deterministically generated with `random.Random(42)` — strength profiles in `DRIVER_STRENGTH_2025`
+- Mid-season swap: `get_2025_constructor(code, round_num)` in seed.py handles LAW/TSU — LAW at Red Bull rounds 1–2, TSU at Red Bull rounds 3–24
 - Driver prices should match official 2026 F1 Fantasy opening prices (see `DRIVER_PRICES` in seed.py)
 - Season is controlled by `CURRENT_SEASON` in `backend/core/config.py` (currently 2026)
 - API endpoints that return season-specific data accept `?season=` query param (default: CURRENT_SEASON)
@@ -265,6 +269,7 @@ Visit http://localhost:8000/docs (FastAPI auto-generates this)
 curl http://localhost:8000/api/drivers | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(len(d), 'drivers')"
 curl "http://localhost:8000/api/races?season=2025" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(len(d), 'races')"
 curl "http://localhost:8000/api/standings/value?season=2025" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(d[0]['code'], d[0]['xp'])"
+curl "http://localhost:8000/api/standings/progression?season=2025" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(len(d), 'rounds,', len([k for k in d[-1] if k not in ('round','round_name')]), 'drivers in final round')"
 ```
 
 **Manually trigger score validation**
@@ -279,4 +284,4 @@ cd backend && pytest
 
 ---
 
-*CLAUDE.md version: 1.1 | Project: f1-points-engine | Season: F1 2026*
+*CLAUDE.md version: 1.2 | Project: f1-points-engine | Season: F1 2026*

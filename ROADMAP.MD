@@ -30,10 +30,19 @@ Everything a fantasy player needs to compete seriously.
 - F1 Drivers Championship (WDC) with points progression chart
 - F1 Constructors Championship (WCC)
 - Fantasy value leaderboard (points per $M)
+- `GET /api/standings/progression?season=` — cumulative fantasy points per driver per round, computed from DB (no Ergast dependency); chart shows all 24 real rounds
 
 **Expected Points (xP)**
 - Rolling weighted average with circuit-type multiplier
 - Shown on all driver cards, used by optimizer
+
+**Data Integrity (resolved bug fixes)**
+- Arvid Lindblad (not Ayumu) — code LIN, Swedish, Racing Bulls
+- 2026 team assignments: Colapinto→Alpine, Perez/Bottas→Cadillac, Hulkenberg/Bortoleto→Audi
+- 2025 mid-season swap: Lawson at Red Bull rounds 1–2, Tsunoda at Red Bull rounds 3–24
+- TSU + DOO seeded as 2025-only drivers (price=0) — 24 rounds of race results preserved
+- Dashboard: Races Remaining shows full season count; days-until-next-race subtitle; "Season Starts" label pre-season
+- Team Builder: content scrolls above sticky mobile footer (`pb-44 sm:pb-0`)
 
 ---
 
@@ -120,4 +129,4 @@ The app is optimised for use during live race weekends on a phone:
 
 ---
 
-*Roadmap version: 1.1 | Last updated: March 2026*
+*Roadmap version: 1.2 | Last updated: March 2026*
