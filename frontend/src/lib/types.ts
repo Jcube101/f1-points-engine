@@ -14,6 +14,83 @@ export interface Driver {
   xp: number
   value_score: number
   total_fantasy_pts: number
+  // Phase 2 intelligence fields (populated by GET /api/drivers)
+  form_status?: 'overperforming' | 'underperforming' | 'on_form'
+  form_delta?: number
+  circuit_fit_score?: number
+  circuit_fit_type?: string
+  is_differential?: boolean
+}
+
+export interface DriverFormHistory {
+  race_name: string
+  round: number
+  circuit_type: string
+  actual: number
+  xp: number
+}
+
+export interface DriverForm {
+  driver_id: number
+  driver_code: string
+  driver_name: string
+  actual_avg: number
+  xp_avg: number
+  delta: number
+  flag: 'overperforming' | 'underperforming' | 'on_form'
+  history: DriverFormHistory[]
+}
+
+export interface CircuitFitEntry {
+  driver_id: number
+  driver_code: string
+  driver_name: string
+  team_name: string
+  circuit_type: string
+  avg_points: number
+  races_counted: number
+  fit_score: number
+}
+
+export interface UpcomingRaceDifficulty {
+  round: number
+  race_name: string
+  circuit_type: string
+  date: string
+  driver_fits: Record<string, number>
+}
+
+export interface TeammateStats {
+  id: number
+  name: string
+  code: string
+  price: number
+  avg_fantasy_pts: number
+  total_fantasy_pts: number
+  avg_qualifying_pos: number
+  avg_race_pos: number
+  quali_h2h_wins: number
+  xp: number
+  pts_per_million: number
+}
+
+export interface TeammateComparison {
+  constructor_id: number
+  driver_1: TeammateStats
+  driver_2: TeammateStats
+  h2h_qualifying_races: number
+}
+
+export interface TransferMove {
+  race: string
+  round: number
+  date: string
+  circuit_type: string
+  drop: { id: number; code: string; name: string; xp: number; price: number }
+  add: { id: number; code: string; name: string; xp: number; price: number } | null
+  budget_delta: number
+  chip_alternative: string | null
+  reasoning: string
 }
 
 export interface Constructor {

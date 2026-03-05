@@ -4,7 +4,9 @@ import type {
   Driver, Constructor, Race, RaceResult, OptimizedTeam,
   FantasyPointsBreakdown, ChipRecommendation,
   WDCStanding, WCCStanding, ValueLeaderboardEntry,
-  ScoreValidationEntry, ProgressionRound, ApiResponse,
+  ScoreValidationEntry, ProgressionRound,
+  DriverForm, CircuitFitEntry, UpcomingRaceDifficulty,
+  TeammateComparison, TransferMove, ApiResponse,
 } from './types'
 
 const BASE_URL = '/api'
@@ -119,5 +121,41 @@ export async function runValidation(): Promise<unknown> {
 
 export async function fetchLiveStatus(): Promise<{ is_live: boolean; session_type: string | null; session_key?: number }> {
   const res = await http.get<ApiResponse<{ is_live: boolean; session_type: string | null }>>('/live/status')
+  return res.data.data
+}
+
+// ─── Phase 2: Intelligence Layer ─────────────────────────────────────────────
+
+export async function fetchDriverForm(driverId: number): Promise<DriverForm> {
+  const res = await http.get<ApiResponse<DriverForm>>(`/drivers/${driverId}/form`)
+  return res.data.data
+}
+
+export async function fetchCircuitFit(circuitType: string): Promise<CircuitFitEntry[]> {
+  const res = await http.get<ApiResponse<CircuitFitEntry[]>>('/drivers/circuit-fit', { params: { circuit_type: circuitType } })
+  return res.data.data
+}
+
+export async function fetchUpcomingDifficulty(driverCodes: string[]): Promise<UpcomingRaceDifficulty[]> {
+  const res = await http.get<ApiResponse<UpcomingRaceDifficulty[]>>('/races/upcoming-difficulty', {
+    params: { drivers: driverCodes.join(',') },
+  })
+  return res.data.data
+}
+
+export async function fetchTeammateComparison(constructorId: number): Promise<TeammateComparison | null> {
+  const res = await http.get<ApiResponse<TeammateComparison | null>>(`/constructors/${constructorId}/teammates`)
+  return res.data.data
+}
+
+export async function fetchVsTeammate(driverId: number): Promise<TeammateComparison | null> {
+  const res = await http.get<ApiResponse<TeammateComparison | null>>(`/drivers/${driverId}/vs-teammate`)
+  return res.data.data
+}
+
+export async function fetchTransferPlan(driverCodes: string[], constructorCodes: string[]): Promise<TransferMove[]> {
+  const res = await http.get<ApiResponse<TransferMove[]>>('/transfers/plan', {
+    params: { drivers: driverCodes.join(','), constructors: constructorCodes.join(',') },
+  })
   return res.data.data
 }

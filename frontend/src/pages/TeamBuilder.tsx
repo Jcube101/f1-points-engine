@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchDrivers, fetchConstructors } from '../lib/api'
+import { fetchDrivers, fetchConstructors, fetchTransferPlan } from '../lib/api'
 import { useTeam } from '../hooks/useTeam'
 import { useOptimizer } from '../hooks/useOptimizer'
 import DriverCard from '../components/DriverCard'
 import ConstructorCard from '../components/ConstructorCard'
+import TeammateModal from '../components/TeammateModal'
 import TeamSummary from '../components/TeamSummary'
 import type { Driver, Constructor, AssetResult } from '../lib/types'
 
@@ -16,6 +17,9 @@ export default function TeamBuilder() {
   const [search, setSearch] = useState('')
   const [optimizeMode, setOptimizeMode] = useState<OptimizeMode>('max_points')
   const [activeTab, setActiveTab] = useState<'drivers' | 'constructors'>('drivers')
+  const [showDifferentialsOnly, setShowDifferentialsOnly] = useState(false)
+  const [teammateModalId, setTeammateModalId] = useState<number | null>(null)
+  const [transferPlanOpen, setTransferPlanOpen] = useState(false)
 
   const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: fetchDrivers })
   const { data: constructors = [] } = useQuery({ queryKey: ['constructors'], queryFn: fetchConstructors })
@@ -23,10 +27,21 @@ export default function TeamBuilder() {
   const team = useTeam()
   const { loading, result, error, runOptimizer } = useOptimizer()
 
-  const filteredDrivers = drivers.filter((d) =>
-    d.name.toLowerCase().includes(search.toLowerCase()) ||
-    d.team_name.toLowerCase().includes(search.toLowerCase())
-  )
+  // Transfer plan — fetched lazily when panel opened and team has drivers
+  const teamDriverCodes = team.drivers.map((d) => d.code)
+  const teamConstructorCodes = team.constructors.map((c) => c.code ?? c.name.substring(0, 3).toUpperCase())
+  const { data: transferPlan = [], isLoading: planLoading } = useQuery({
+    queryKey: ['transferPlan', teamDriverCodes.join(','), teamConstructorCodes.join(',')],
+    queryFn: () => fetchTransferPlan(teamDriverCodes, teamConstructorCodes),
+    enabled: transferPlanOpen && team.drivers.length > 0,
+  })
+
+  const filteredDrivers = drivers
+    .filter((d) =>
+      d.name.toLowerCase().includes(search.toLowerCase()) ||
+      d.team_name.toLowerCase().includes(search.toLowerCase())
+    )
+    .filter((d) => !showDifferentialsOnly || d.is_differential)
 
   const filteredConstructors = constructors.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase())
@@ -44,18 +59,18 @@ export default function TeamBuilder() {
     team.loadOptimized(selectedDrivers, selectedConstructors)
   }
 
-  // Budget calculation for sticky footer
   const spent = team.drivers.reduce((s, d) => s + d.price, 0) +
     team.constructors.reduce((s, c) => s + c.price, 0)
   const remaining = BUDGET - spent
   const budgetPct = Math.min(100, (spent / BUDGET) * 100)
 
+  const differentialCount = drivers.filter((d) => d.is_differential).length
+
   return (
     <div className="space-y-4 pb-44 sm:pb-0">
-      {/* Header — desktop shows optimize button here */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Team Builder</h1>
-        {/* Desktop-only optimize controls in header */}
         <div className="hidden sm:flex gap-2">
           <button
             onClick={() => runOptimizer()}
@@ -77,7 +92,7 @@ export default function TeamBuilder() {
 
       {error && <div className="text-red-400 text-sm bg-red-950/30 rounded p-3">{error}</div>}
 
-      {/* Optimizer result (both mobile + desktop) */}
+      {/* Optimizer result */}
       {result && (
         <div className="bg-gray-800 rounded-lg p-3 border border-gray-700 text-sm">
           <div className="flex items-center gap-3 mb-2 flex-wrap">
@@ -92,7 +107,6 @@ export default function TeamBuilder() {
                 {mode === 'max_points' ? 'Max Points' : 'Best Value'}
               </button>
             ))}
-            {/* Mobile-only Load Team button */}
             <button
               onClick={handleLoadOptimized}
               className="sm:hidden min-h-[36px] px-3 py-1 rounded bg-green-700 text-white text-xs font-medium"
@@ -114,6 +128,61 @@ export default function TeamBuilder() {
         </div>
       )}
 
+      {/* Transfer Planner — collapsible */}
+      {team.drivers.length > 0 && (
+        <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+          <button
+            onClick={() => setTransferPlanOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-white min-h-[44px]"
+          >
+            <span>📋 Transfer Planner — next 3 races</span>
+            <span className="text-gray-400 text-xs">{transferPlanOpen ? '▲ Hide' : '▼ Show'}</span>
+          </button>
+
+          {transferPlanOpen && (
+            <div className="border-t border-gray-700/50 px-4 pb-4 pt-3 space-y-3">
+              {planLoading ? (
+                <p className="text-gray-400 text-sm">Calculating plan...</p>
+              ) : transferPlan.length === 0 ? (
+                <p className="text-gray-500 text-sm">No transfers needed — your team looks solid for the next 3 races.</p>
+              ) : (
+                transferPlan.map((move, i) => (
+                  <div key={i} className="rounded-lg border border-gray-700 p-3 space-y-2">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
+                      <p className="font-medium text-white text-sm">Round {move.round} — {move.race}</p>
+                      <span className={`text-xs px-1.5 py-0.5 rounded border ${
+                        move.circuit_type === 'street'
+                          ? 'border-orange-600 text-orange-400'
+                          : move.circuit_type === 'power'
+                          ? 'border-blue-600 text-blue-400'
+                          : 'border-gray-600 text-gray-400'
+                      }`}>{move.circuit_type}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-red-400 font-mono font-bold">− {move.drop.code}</span>
+                      <span className="text-gray-500">→</span>
+                      <span className="text-green-400 font-mono font-bold">+ {move.add?.code ?? 'N/A'}</span>
+                      <span className={`text-xs ml-auto ${move.budget_delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {move.budget_delta >= 0 ? '+' : ''}${(move.budget_delta / 1e6).toFixed(1)}M
+                      </span>
+                    </div>
+
+                    {move.chip_alternative && (
+                      <p className="text-xs text-amber-400">
+                        💡 Chip alternative: {move.chip_alternative}
+                      </p>
+                    )}
+
+                    <p className="text-xs text-gray-500">{move.reasoning}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-4">
         {/* Asset picker */}
         <div className="lg:col-span-2 space-y-3">
@@ -125,7 +194,7 @@ export default function TeamBuilder() {
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
           />
 
-          {/* Tab toggle — full-width tap targets on mobile */}
+          {/* Tab toggle */}
           <div className="flex gap-2">
             {(['drivers', 'constructors'] as const).map((tab) => (
               <button
@@ -140,23 +209,46 @@ export default function TeamBuilder() {
             ))}
           </div>
 
-          {/* Cards — single column on mobile, 2 col on sm+ */}
+          {/* Differentials toggle (drivers tab only) */}
+          {activeTab === 'drivers' && (
+            <label className="flex items-center gap-2 text-sm cursor-pointer min-h-[36px]">
+              <input
+                type="checkbox"
+                checked={showDifferentialsOnly}
+                onChange={(e) => setShowDifferentialsOnly(e.target.checked)}
+                className="rounded w-4 h-4"
+              />
+              <span className="text-gray-300">
+                Show Differentials Only
+                {differentialCount > 0 && (
+                  <span className="ml-1 text-yellow-400 text-xs">⚡ {differentialCount} available</span>
+                )}
+              </span>
+            </label>
+          )}
+
           {activeTab === 'drivers' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {filteredDrivers.map((d) => (
-                <DriverCard
-                  key={d.id}
-                  driver={d}
-                  selected={!!team.drivers.find((x) => x.id === d.id)}
-                  onSelect={(drv) => {
-                    if (team.drivers.find((x) => x.id === drv.id)) {
-                      team.removeDriver(drv.id)
-                    } else {
-                      team.addDriver(drv)
-                    }
-                  }}
-                />
-              ))}
+              {filteredDrivers.length === 0 && showDifferentialsOnly ? (
+                <p className="col-span-2 text-gray-500 text-sm py-4 text-center">
+                  No differential picks available right now.
+                </p>
+              ) : (
+                filteredDrivers.map((d) => (
+                  <DriverCard
+                    key={d.id}
+                    driver={d}
+                    selected={!!team.drivers.find((x) => x.id === d.id)}
+                    onSelect={(drv) => {
+                      if (team.drivers.find((x) => x.id === drv.id)) {
+                        team.removeDriver(drv.id)
+                      } else {
+                        team.addDriver(drv)
+                      }
+                    }}
+                  />
+                ))
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -172,13 +264,14 @@ export default function TeamBuilder() {
                       team.addConstructor(con)
                     }
                   }}
+                  onCompareTeammates={(id) => setTeammateModalId(id)}
                 />
               ))}
             </div>
           )}
         </div>
 
-        {/* Desktop sidebar: TeamSummary */}
+        {/* Desktop sidebar */}
         <div className="space-y-3">
           <TeamSummary
             drivers={team.drivers}
@@ -212,10 +305,8 @@ export default function TeamBuilder() {
         </div>
       </div>
 
-      {/* ── Mobile sticky footer: DRS pills + budget + optimize ──────────────── */}
-      {/* Positioned above the 56px BottomNav (bottom-14 = 3.5rem = 56px) */}
+      {/* Mobile sticky footer */}
       <div className="sm:hidden fixed bottom-14 left-0 right-0 z-40 bg-gray-900 border-t border-gray-700 px-4 pt-2 pb-2 shadow-lg">
-        {/* DRS boost pills — horizontally scrollable */}
         {team.drivers.length > 0 && (
           <div className="mb-2">
             <p className="text-xs text-gray-500 mb-1">DRS Boost — tap to select:</p>
@@ -237,7 +328,6 @@ export default function TeamBuilder() {
           </div>
         )}
 
-        {/* Budget bar */}
         <div className="flex justify-between text-xs text-gray-400 mb-1">
           <span>${(spent / 1e6).toFixed(1)}M used</span>
           <span className={remaining < 0 ? 'text-red-400 font-bold' : 'text-green-400'}>
@@ -251,7 +341,6 @@ export default function TeamBuilder() {
           />
         </div>
 
-        {/* Full-width Optimize button */}
         <button
           onClick={() => runOptimizer()}
           disabled={loading}
@@ -260,6 +349,12 @@ export default function TeamBuilder() {
           {loading ? 'Optimising...' : 'Optimise Team'}
         </button>
       </div>
+
+      {/* Teammate modal */}
+      <TeammateModal
+        constructorId={teammateModalId}
+        onClose={() => setTeammateModalId(null)}
+      />
     </div>
   )
 }

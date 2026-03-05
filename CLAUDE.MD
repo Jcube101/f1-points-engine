@@ -18,8 +18,8 @@ F1 Points Engine is an open source web app that helps F1 fans win their fantasy 
 
 ## Current Phase
 
-**Phase 1 + Mobile UI** are complete and stable (all known data/UI bugs resolved). See `ROADMAP.MD` for what is in scope.
-Do not build Phase 2 or Phase 3 features unless explicitly instructed.
+**Phase 1 + Phase 2 Intelligence Layer** are complete and stable. See `ROADMAP.MD` for what is in scope.
+Do not build Phase 3 features unless explicitly instructed.
 
 ---
 
@@ -83,9 +83,11 @@ backend/data/fantasy_validator.py ← Cross-check scores vs official F1 Fantasy 
 backend/scheduler/live_poller.py  ← Polls OpenF1 every 30s during race sessions
 backend/seed.py                  ← One-time DB seeding: 2026 drivers/constructors,
                                     2025+2026 calendars, 2025 season results (generated),
-                                    xP scores. Run: python backend/seed.py
+                                    xP scores, circuit profiles. Run: python backend/seed.py
+backend/api/routes/transfers.py  ← Phase 2: Transfer Planner endpoint
 frontend/src/pages/              ← One file per page/route
-frontend/src/components/         ← Reusable UI components (incl. BottomNav, LiveTicker)
+frontend/src/components/         ← Reusable UI components (incl. BottomNav, LiveTicker,
+                                    TeammateModal)
 frontend/src/hooks/              ← useTeam (Zustand), useLiveRace (WS), useOptimizer
 frontend/src/lib/types.ts        ← All shared TypeScript types defined here
 frontend/src/lib/api.ts          ← All backend API calls (fetchDrivers, fetchWDC, etc.)
@@ -270,6 +272,10 @@ curl http://localhost:8000/api/drivers | python3 -c "import json,sys; d=json.loa
 curl "http://localhost:8000/api/races?season=2025" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(len(d), 'races')"
 curl "http://localhost:8000/api/standings/value?season=2025" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(d[0]['code'], d[0]['xp'])"
 curl "http://localhost:8000/api/standings/progression?season=2025" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(len(d), 'rounds,', len([k for k in d[-1] if k not in ('round','round_name')]), 'drivers in final round')"
+curl "http://localhost:8000/api/drivers/circuit-fit?circuit_type=street" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(d[0]['driver_code'], d[0]['fit_score'])"
+curl "http://localhost:8000/api/drivers/1/form" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(d['flag'], d['delta'])"
+curl "http://localhost:8000/api/constructors/1/teammates" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(d['driver_1']['code'], 'vs', d['driver_2']['code'])"
+curl "http://localhost:8000/api/transfers/plan?drivers=VER,NOR" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(len(d), 'transfer moves')"
 ```
 
 **Manually trigger score validation**
@@ -284,4 +290,37 @@ cd backend && pytest
 
 ---
 
-*CLAUDE.md version: 1.2 | Project: f1-points-engine | Season: F1 2026*
+## Phase 2 Intelligence Layer — Key Concepts
+
+### Form vs Luck Detector
+- `GET /api/drivers/{id}/form` — last 5 races with per-race xP (computed from 3 preceding races)
+- `_form_flag(actual_avg, xp)`: ratio > 1.2 → overperforming, < 0.8 → underperforming, else on_form
+- Frontend: 🔴 Sell signal badge (overperforming), 🟢 Buy signal badge (underperforming) on DriverCard
+- Tap-to-expand sparkline (Recharts AreaChart) — lazy-fetched with `enabled: expanded`
+
+### Circuit Intelligence
+- `DriverCircuitProfile` table: driver × circuit_type (street/power/balanced) → avg_points, races_counted
+- Seeded by `seed_circuit_profiles(db)` — idempotent delete-and-rebuild
+- `GET /api/drivers/circuit-fit?circuit_type=` — ranked by avg_points, normalised 0–10 fit_score
+- `GET /api/races/upcoming-difficulty?drivers=&season=` — next 5 races with per-driver fit scores
+- Frontend: circuit fit badge on DriverCard; "Fixture View" tab on Standings page (colour-coded tiles)
+
+### Differential Finder
+- Threshold: top-30% xP percentile AND price < $12M → `is_differential = true`
+- ⚡ badge on DriverCard, "Show Differentials Only" toggle in TeamBuilder
+
+### Teammate Comparison
+- `GET /api/constructors/{id}/teammates` — H2H stats for both drivers in a team
+- `GET /api/drivers/{id}/vs-teammate` — same from driver perspective
+- Frontend: "Compare Teammates" button on ConstructorCard → TeammateModal (bottom-sheet on mobile)
+- TeammateModal: side-by-side stat table with winner highlighted green + Recharts BarChart
+
+### Transfer Planner
+- `GET /api/transfers/plan?drivers=&constructors=&season=` — 3-race plan
+- Weakest driver by circuit xP → best in-budget replacement (≥15% better, ±$500K flex)
+- Chip suggestion if ≥2 underperformers
+- Frontend: collapsible "Transfer Planner" section in TeamBuilder (lazy-fetched when opened)
+
+---
+
+*CLAUDE.md version: 1.3 | Project: f1-points-engine | Season: F1 2026*
