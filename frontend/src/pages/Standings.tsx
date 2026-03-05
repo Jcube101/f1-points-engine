@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchWDC, fetchWCC, fetchValueLeaderboard, fetchProgression } from '../lib/api'
+import { fetchWDC, fetchWCC, fetchValueLeaderboard, fetchProgression, fetchUpcomingDifficulty } from '../lib/api'
 import ValueRankings from '../components/ValueRankings'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
 } from 'recharts'
 
-type Tab = 'wdc' | 'wcc' | 'value'
+type Tab = 'wdc' | 'wcc' | 'value' | 'fixtures'
 type Season = 2025 | 2026
 
 const COLORS = ['#E8002D', '#FF8000', '#3671C6', '#27F4D2', '#229971']
@@ -33,6 +33,12 @@ export default function Standings() {
   const { data: progression = [] } = useQuery({
     queryKey: ['progression', season],
     queryFn: () => fetchProgression(season),
+  })
+
+  const { data: upcomingDifficulty = [], isLoading: fixturesLoading } = useQuery({
+    queryKey: ['upcomingDifficulty'],
+    queryFn: () => fetchUpcomingDifficulty([]),
+    enabled: tab === 'fixtures',
   })
 
   // Derive top 5 driver codes from the final round's cumulative totals
@@ -78,6 +84,7 @@ export default function Standings() {
           { key: 'wdc', label: 'Drivers (WDC)' },
           { key: 'wcc', label: 'Constructors (WCC)' },
           { key: 'value', label: 'Fantasy Value' },
+          { key: 'fixtures', label: 'Fixture View' },
         ] as { key: Tab; label: string }[]).map((t) => (
           <button
             key={t.key}
@@ -252,6 +259,71 @@ export default function Standings() {
                   : 'Value score = xP ÷ price ($M) based on 2025 history. Higher is better. No 2026 races yet.'}
               </p>
               <ValueRankings entries={valueData} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'fixtures' && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500">
+            Next 5 races — circuit type and driver fit scores (0–10). Green ≥ 7, amber ≥ 4, red &lt; 4.
+          </p>
+          {fixturesLoading ? (
+            <p className="text-gray-400 text-sm">Loading fixtures...</p>
+          ) : upcomingDifficulty.length === 0 ? (
+            <div className="bg-gray-800 rounded-lg p-6 text-center border border-gray-700">
+              <p className="text-gray-400">No upcoming race data available</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {upcomingDifficulty.map((race) => {
+                const driverEntries = Object.entries(race.driver_fits)
+                return (
+                  <div key={race.round} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                    {/* Race header */}
+                    <div className="px-4 py-3 border-b border-gray-700/50 flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <p className="font-semibold text-white text-sm">{race.race_name}</p>
+                        <p className="text-xs text-gray-400">Round {race.round} · {race.date}</p>
+                      </div>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded border ${
+                        race.circuit_type === 'street'
+                          ? 'border-orange-600 text-orange-400 bg-orange-900/20'
+                          : race.circuit_type === 'power'
+                          ? 'border-blue-600 text-blue-400 bg-blue-900/20'
+                          : 'border-gray-600 text-gray-400 bg-gray-700/20'
+                      }`}>
+                        {race.circuit_type}
+                      </span>
+                    </div>
+
+                    {/* Driver fit scores */}
+                    {driverEntries.length > 0 ? (
+                      <div className="px-4 py-3 overflow-x-auto">
+                        <div className="flex gap-3 min-w-max">
+                          {driverEntries
+                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                            .map(([code, score]) => {
+                              const s = score as number
+                              const color = s >= 7 ? 'text-green-400 bg-green-900/20 border-green-700'
+                                : s >= 4 ? 'text-yellow-400 bg-yellow-900/20 border-yellow-700'
+                                : 'text-red-400 bg-red-900/20 border-red-700'
+                              return (
+                                <div key={code} className={`flex flex-col items-center px-2 py-1.5 rounded border min-w-[52px] ${color}`}>
+                                  <span className="text-xs font-mono font-bold">{code}</span>
+                                  <span className="text-xs font-medium mt-0.5">{s.toFixed(1)}</span>
+                                </div>
+                              )
+                            })}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="px-4 py-3 text-xs text-gray-500">No fit data for this race</p>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

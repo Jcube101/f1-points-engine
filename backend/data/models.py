@@ -37,6 +37,7 @@ class Driver(Base):
     race_results = relationship("RaceResult", back_populates="driver")
     fantasy_points = relationship("FantasyPoints", back_populates="driver")
     score_validations = relationship("ScoreValidation", back_populates="driver")
+    circuit_profiles = relationship("DriverCircuitProfile", back_populates="driver")
 
 
 class Race(Base):
@@ -103,6 +104,20 @@ class FantasyPoints(Base):
 
     race = relationship("Race", back_populates="fantasy_points")
     driver = relationship("Driver", back_populates="fantasy_points")
+
+
+class DriverCircuitProfile(Base):
+    """Per-driver average fantasy points by circuit type, computed from 2025 seed data."""
+
+    __tablename__ = "driver_circuit_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=False)
+    circuit_type = Column(String, nullable=False)  # street | power | balanced
+    avg_points = Column(Float, default=0.0)
+    races_counted = Column(Integer, default=0)
+
+    driver = relationship("Driver", back_populates="circuit_profiles")
 
 
 class ScoreValidation(Base):

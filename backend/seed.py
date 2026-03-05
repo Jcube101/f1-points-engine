@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
 from backend.db.database import engine, init_db, SessionLocal
-from backend.data.models import Driver, Constructor, Race, RaceResult, FantasyPoints
+from backend.data.models import Driver, Constructor, Race, RaceResult, FantasyPoints, DriverCircuitProfile
 from backend.data.ergast_client import (
     get_race_calendar, get_drivers, get_constructors,
     get_season_results, get_season_qualifying,
@@ -616,6 +616,51 @@ def compute_xp_scores(db: Session):
     logger.info("  Computed xP scores for %d drivers", len(drivers))
 
 
+def seed_circuit_profiles(db: Session) -> int:
+    """
+    Compute and store DriverCircuitProfile rows from 2025 season data.
+
+    For each driver × circuit_type combination, calculates the average fantasy
+    points across all 2025 races of that type. Idempotent — deletes and rebuilds
+    all rows on each run.
+    """
+    # Clear existing profiles to ensure idempotency
+    db.query(DriverCircuitProfile).delete()
+    db.commit()
+
+    races_2025 = db.query(Race).filter_by(season=2025).all()
+    race_by_id = {r.id: r for r in races_2025}
+
+    # Build: driver_id -> circuit_type -> [total_pts]
+    from collections import defaultdict
+    data: dict[int, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+
+    fp_rows = db.query(FantasyPoints).filter(
+        FantasyPoints.race_id.in_(list(race_by_id.keys()))
+    ).all()
+
+    for fp in fp_rows:
+        race = race_by_id.get(fp.race_id)
+        if race:
+            data[fp.driver_id][race.circuit_type].append(fp.total_pts)
+
+    inserted = 0
+    for driver_id, ct_map in data.items():
+        for circuit_type, pts_list in ct_map.items():
+            avg = sum(pts_list) / len(pts_list)
+            profile = DriverCircuitProfile(
+                driver_id=driver_id,
+                circuit_type=circuit_type,
+                avg_points=round(avg, 2),
+                races_counted=len(pts_list),
+            )
+            db.add(profile)
+            inserted += 1
+
+    db.commit()
+    return inserted
+
+
 async def main():
     logger.info("=" * 60)
     logger.info("F1 Points Engine — Database Seed")
@@ -648,6 +693,10 @@ async def main():
 
         logger.info("\nComputing xP scores from 2025 history...")
         compute_xp_scores(db)
+
+        logger.info("\nBuilding circuit profiles (driver avg pts per circuit type)...")
+        n_profiles = seed_circuit_profiles(db)
+        logger.info("  %d driver × circuit-type profiles seeded", n_profiles)
 
         logger.info("\n" + "=" * 60)
         logger.info("Seed complete! App is ready to use.")

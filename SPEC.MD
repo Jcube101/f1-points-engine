@@ -437,4 +437,26 @@ A first-time reviewer should be able to:
 
 ---
 
-*Spec version: 2.0 | Project: f1-points-engine | Season: F1 2026*
+## Phase 2: Intelligence Layer API Spec
+
+### Form vs Luck
+- `GET /api/drivers/{id}/form` → `{ flag, actual_avg, xp_avg, delta, history: [{round, race_name, circuit_type, actual, xp}] }`
+- `GET /api/drivers` → now includes `form_status`, `form_delta`, `circuit_fit_score`, `circuit_fit_type`, `is_differential` per driver
+
+### Circuit Intelligence
+- `GET /api/drivers/circuit-fit?circuit_type=street|power|balanced` → `[{ driver_id, driver_code, driver_name, team_name, circuit_type, avg_points, races_counted, fit_score }]`
+- `GET /api/races/upcoming-difficulty?drivers=VER,NOR&season=2025` → `[{ round, race_name, circuit_type, date, driver_fits: Record<code, score> }]`
+
+### Teammate Comparison
+- `GET /api/constructors/{id}/teammates` → `{ constructor_id, driver_1: TeammateStats, driver_2: TeammateStats, h2h_qualifying_races }`
+- `GET /api/drivers/{id}/vs-teammate` → same shape
+
+### Transfer Planner
+- `GET /api/transfers/plan?drivers=VER,NOR&constructors=RBR&season=2025` → `[{ race, round, date, circuit_type, drop, add, budget_delta, chip_alternative, reasoning }]`
+- `add` may be null if no valid replacement found within budget
+
+All responses: `{ success: bool, data: any, error?: string }`
+
+---
+
+*Spec version: 2.1 | Project: f1-points-engine | Season: F1 2026*

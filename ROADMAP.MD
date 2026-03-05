@@ -46,35 +46,35 @@ Everything a fantasy player needs to compete seriously.
 
 ---
 
-## Phase 2: Intelligence Layer 🔜 *After Phase 1 is stable*
+## Phase 2: Intelligence Layer ✅ *Complete*
 
 Turns good fantasy players into great ones. FPL-inspired analytical depth.
 
-**Circuit Intelligence**
-- Each circuit tagged: street / power / balanced / high-overtake
-- Per-driver performance history on each circuit type
-- "Circuit fit score" shown for each driver before each race weekend
-- Upcoming fixture difficulty view: rank next 5 races by opportunity for your team
+**Form vs Luck Detector** ✅
+- `GET /api/drivers/{id}/form` — last 5 races actual vs xP, delta, flag
+- 🔴 Sell signal (overperforming) / 🟢 Buy signal (underperforming) badges on DriverCard
+- Recharts AreaChart sparkline (lazy-fetched on card expand)
 
-**Differential Finder**
-- Flag drivers with high xP but likely low ownership
-- "This driver is owned by few but could be the highest scorer this weekend"
-- Inspired by FPL differential picks concept
+**Circuit Intelligence** ✅
+- `DriverCircuitProfile` DB table — avg_points per driver per circuit type (street/power/balanced)
+- `GET /api/drivers/circuit-fit?circuit_type=` — ranked fit scores (0–10)
+- `GET /api/races/upcoming-difficulty?drivers=` — next 5 races with driver fit tiles
+- Circuit fit badge on DriverCard; "Fixture View" tab on Standings page (colour-coded green/amber/red)
 
-**Form vs Luck Detector**
-- Compare actual points vs xP over last 5 races
-- "Overperforming" flag: driver scoring above xP (regression risk)
-- "Underperforming" flag: driver scoring below xP (bounce-back candidate)
-- Helps users avoid buying at peak and selling at trough
+**Differential Finder** ✅
+- `is_differential` flag: top-30% xP AND price < $12M
+- ⚡ badge on DriverCard
+- "Show Differentials Only" toggle in TeamBuilder
 
-**Transfer Planner**
-- Multi-week view: plan transfers 3 races ahead
-- Chip timing recommendations based on fixture run
-- Price rise/fall predictions based on recent xP vs price
+**Teammate Comparison** ✅
+- `GET /api/constructors/{id}/teammates` + `GET /api/drivers/{id}/vs-teammate`
+- "Compare Teammates" button on ConstructorCard
+- TeammateModal: bottom-sheet (mobile) / centered (desktop) with stat table + Recharts BarChart
 
-**Teammate Comparison**
-- Head-to-head qualifying and race stats for drivers within the same team
-- Helps decide which teammate to pick when budget-constrained
+**Transfer Planner** ✅
+- `GET /api/transfers/plan?drivers=&constructors=` — 3-race plan timeline
+- Drop/add suggestions with budget delta; chip alternative flag (amber)
+- Collapsible "Transfer Planner" section in TeamBuilder (lazy-fetched)
 
 ---
 
@@ -129,4 +129,4 @@ The app is optimised for use during live race weekends on a phone:
 
 ---
 
-*Roadmap version: 1.2 | Last updated: March 2026*
+*Roadmap version: 1.3 | Last updated: March 2026*
