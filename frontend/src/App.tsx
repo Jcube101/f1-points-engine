@@ -7,6 +7,8 @@ import LiveRace from './pages/LiveRace'
 import Standings from './pages/Standings'
 import ChipAdvisor from './pages/ChipAdvisor'
 import ScoreValidator from './pages/ScoreValidator'
+import TitleRace from './pages/TitleRace'
+import Help from './pages/Help'
 
 export default function App() {
   return (
@@ -23,6 +25,8 @@ export default function App() {
             <Route path="/live" element={<LiveRace />} />
             <Route path="/standings" element={<Standings />} />
             <Route path="/chips" element={<ChipAdvisor />} />
+            <Route path="/title-race" element={<TitleRace />} />
+            <Route path="/help" element={<Help />} />
             <Route path="/validation" element={<ScoreValidator />} />
           </Routes>
         </main>

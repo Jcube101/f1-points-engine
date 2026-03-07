@@ -253,3 +253,26 @@ export interface ApiResponse<T> {
   data: T
   error?: string
 }
+
+// ─── Title Race Simulator ────────────────────────────────────────────────────
+
+export interface TitleOddsEntry {
+  driver_code: string
+  driver_name: string
+  win_probability: number
+  current_points: number
+  simulated_avg_final: number
+}
+
+export interface TitleOddsResult {
+  season: number
+  simulations: number
+  remaining_races: number
+  odds: TitleOddsEntry[]
+  scenario_summary: string
+}
+
+export interface PaceMultiplier {
+  driver_code: string
+  multiplier: number
+}

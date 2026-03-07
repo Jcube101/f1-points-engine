@@ -159,3 +159,17 @@ export async function fetchTransferPlan(driverCodes: string[], constructorCodes:
   })
   return res.data.data
 }
+
+// ─── Title Race Simulator ────────────────────────────────────────────────────
+
+export async function fetchTitleOdds(
+  season = 2026,
+  paceMultipliers: { driver_code: string; multiplier: number }[] = [],
+): Promise<import('./types').TitleOddsResult> {
+  const res = await http.post<ApiResponse<import('./types').TitleOddsResult>>('/simulator/title-odds', {
+    season,
+    simulations: 10_000,
+    pace_multipliers: paceMultipliers,
+  })
+  return res.data.data
+}
