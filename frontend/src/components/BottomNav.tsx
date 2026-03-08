@@ -23,21 +23,21 @@ const tabs = [
     ),
   },
   {
-    to: '/live',
-    label: 'Live',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-        <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
-        <path strokeLinecap="round" d="M16.24 7.76a6 6 0 010 8.49M7.76 16.24a6 6 0 010-8.49M19.07 4.93a10 10 0 010 14.14M4.93 19.07a10 10 0 010-14.14" />
-      </svg>
-    ),
-  },
-  {
     to: '/standings',
     label: 'Standings',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
         <polyline strokeLinecap="round" strokeLinejoin="round" points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    ),
+  },
+  {
+    to: '/title-race',
+    label: 'Title',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 21h8M12 17v4M5 3h14l-1 7a6 6 0 01-12 0L5 3z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 3H2v4a3 3 0 003 3M19 3h3v4a3 3 0 01-3 3" />
       </svg>
     ),
   },

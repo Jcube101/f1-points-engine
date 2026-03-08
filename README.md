@@ -27,6 +27,16 @@ F1 Points Engine is an open-source fantasy F1 tool that helps you win your fanta
 | **Teammate Comparison** | Head-to-head qualifying and fantasy stats for both drivers in a constructor. "Compare Teammates" button on every constructor card opens a modal with a stat table and bar chart |
 | **Transfer Planner** | Plans transfers 3 races ahead — identifies the weakest driver for each upcoming circuit type, suggests the best in-budget replacement, flags if a chip is a better call. Collapsible section in Team Builder |
 
+### Phase 3 — Championship Simulator & Help ✅
+
+| Feature | What it does |
+|---|---|
+| **Race Calendar Fix** | 2026 calendar corrected to local venue race-day dates (23 rounds, no Emilia Romagna). Sprint weekends re-tagged: Miami, Canada, Britain, Netherlands, Singapore. `seed_races()` now updates existing rows, not just inserts |
+| **Title Race — Live Standings** | Championship Standings section with WDC points bar chart (top 10, team-coloured). Auto-updates via OpenF1 API |
+| **Title Race — Monte Carlo Simulator** | `POST /api/simulator/title-odds` runs 10,000 simulations of remaining season using each driver's last 5 race results weighted by recency (50/30/20%). Results cached 1 hour. Frontend shows horizontal win-probability bars + plain-English scenario summary |
+| **Pace Sliders** | Interactive 0.5×–1.5× pace multipliers for top 5 drivers. Debounced (350ms) re-simulation for instant "what-if" exploration |
+| **Help Page** | Accordion FAQ with 6 sections: Getting Started, Scoring Rules, Chips & Strategy, Team Optimizer, Intelligence Features, Title Race Calculator. Smooth CSS transitions, mobile-friendly |
+
 ### Mobile-First UI ✅
 
 - 390px iPhone 14 baseline — bottom navigation bar, sticky budget tracker, swipeable DRS pills
@@ -157,6 +167,12 @@ Weights: 50% most recent, 30% previous, 20% oldest. Circuit types: `street` / `p
 | GET | `/api/races/upcoming-difficulty?drivers=&season=` | Next 5 races with per-driver circuit fit tiles |
 | GET | `/api/transfers/plan?drivers=&constructors=` | 3-race transfer plan: drop, add, budget delta, chip suggestion, reasoning |
 
+### Phase 3 — Title Race Simulator
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/simulator/title-odds` | Run 10,000 Monte Carlo simulations of remaining season; body: `{ season, simulations, pace_multipliers }` |
+
 All responses use `{ "success": true, "data": ... }` envelope.
 
 Full interactive docs: **http://localhost:8000/docs**
@@ -171,7 +187,7 @@ Tables created automatically by SQLAlchemy `create_all()` on startup:
 |---|---|
 | `constructors` | 11 teams (2026 grid, including Cadillac and Audi) |
 | `drivers` | 24 drivers (22 active + TSU + DOO retained for 2025 history, `price=0`) |
-| `races` | 48 races (24 rounds × 2 seasons: 2025 + 2026) |
+| `races` | 47 races (24 rounds 2025 + 23 rounds 2026, corrected local-venue dates) |
 | `race_results` | Qualifying pos, race pos, sprint pos, DNF/DSQ/fastest lap per driver per race |
 | `fantasy_points` | Computed fantasy point totals per driver per race |
 | `driver_circuit_profiles` | Per-driver average pts by circuit type (street / power / balanced) — 60 rows |
@@ -181,7 +197,7 @@ Seed counts after `python backend/seed.py`:
 ```
 constructors:           11
 drivers:                24   (22 active + 2 retired/2025-only)
-races:                  48
+races:                  47   (24 in 2025 + 23 in 2026)
 race_results:          576
 fantasy_points:        576
 driver_circuit_profiles: 60
@@ -217,6 +233,7 @@ f1-points-engine/
 │   │   ├── team.py                # /api/team/optimize
 │   │   ├── chips.py               # /api/chips/recommend
 │   │   ├── points.py              # /api/points/calculate + leaderboard
+│   │   ├── simulator.py           # /api/simulator/title-odds (Phase 3)
 │   │   └── validation.py          # /api/validation
 │   ├── db/
 │   │   └── database.py            # SQLAlchemy engine + session + init_db()
@@ -240,6 +257,8 @@ f1-points-engine/
 │       │   ├── TeamBuilder.tsx    # Differentials toggle, Transfer Planner
 │       │   ├── LiveRace.tsx
 │       │   ├── Standings.tsx      # Fixture View tab (Phase 2)
+│       │   ├── TitleRace.tsx      # Monte Carlo simulator + standings (Phase 3)
+│       │   ├── Help.tsx           # Accordion FAQ (Phase 3)
 │       │   └── ChipAdvisor.tsx
 │       ├── components/
 │       │   ├── DriverCard.tsx     # Form badges, circuit fit, ⚡ differential, sparkline
@@ -313,7 +332,7 @@ See [ROADMAP.MD](ROADMAP.MD) for the full phased plan.
 
 - **Phase 1** ✅ — Team optimizer, live race tracker, chip advisor, standings, score validator, xP engine
 - **Phase 2** ✅ — Circuit intelligence, differential finder, form vs luck detector, teammate comparison, transfer planner
-- **Phase 3** 🔮 — Championship simulator: Monte Carlo title odds, scenario builder ("what if Verstappen DNFs next 3?"), season replay
+- **Phase 3** ✅ — Calendar date fixes, Monte Carlo title odds simulator with pace sliders, Help FAQ page
 
 ---
 

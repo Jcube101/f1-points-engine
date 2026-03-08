@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.db.database import init_db
 from backend.scheduler.live_poller import start_scheduler, stop_scheduler, set_connection_manager
-from backend.api.routes import drivers, constructors, races, team, points, chips, live, standings, validation, transfers
+from backend.api.routes import drivers, constructors, races, team, points, chips, live, standings, validation, transfers, simulator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -106,6 +106,7 @@ app.include_router(live.router)
 app.include_router(standings.router)
 app.include_router(validation.router)
 app.include_router(transfers.router)
+app.include_router(simulator.router)
 
 
 @app.get("/health")
