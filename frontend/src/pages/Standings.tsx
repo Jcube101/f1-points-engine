@@ -14,7 +14,7 @@ const COLORS = ['#E8002D', '#FF8000', '#3671C6', '#27F4D2', '#229971']
 
 export default function Standings() {
   const [tab, setTab] = useState<Tab>('wdc')
-  const [season, setSeason] = useState<Season>(2025)
+  const [season, setSeason] = useState<Season>(2026)
   const [showAllWdc, setShowAllWdc] = useState(false)
   const [showAllWcc, setShowAllWcc] = useState(false)
 

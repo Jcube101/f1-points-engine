@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from backend.db.database import get_db
 from backend.data.models import ScoreValidation, Race, Driver
 from backend.data.fantasy_validator import run_validation
+from backend.core.config import CURRENT_SEASON
 
 router = APIRouter(prefix="/api/validation", tags=["validation"])
 
@@ -13,12 +14,17 @@ router = APIRouter(prefix="/api/validation", tags=["validation"])
 @router.get("/latest")
 async def get_latest_validation(db: Session = Depends(get_db)):
     """
-    Return the most recent score validation results.
+    Return the most recent score validation results for the current season only.
+
+    Filters by CURRENT_SEASON to prevent stale data from prior seasons being
+    returned when no current-season validations exist yet.
 
     Response: { success, data: [{ race, driver, our_score, official_score, delta }] }
     """
     records = (
         db.query(ScoreValidation)
+        .join(Race, Race.id == ScoreValidation.race_id)
+        .filter(Race.season == CURRENT_SEASON)
         .order_by(ScoreValidation.validated_at.desc())
         .limit(100)
         .all()
