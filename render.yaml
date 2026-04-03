@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: f1-points-engine
+    runtime: python
+    region: oregon
+
+    # Build: install Python deps, build React frontend, seed the DB
+    buildCommand: |
+      pip install -r backend/requirements.txt &&
+      cd frontend && npm ci && npm run build && cd .. &&
+      python backend/seed.py
+
+    # Start: FastAPI serves both /api/* and the built React app
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+
+    # Render injects PORT automatically — no need to set it here
+    healthCheckPath: /health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        value: sqlite:///./f1_engine.db   # swap for a Render Postgres URL for persistence

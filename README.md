@@ -279,6 +279,7 @@ f1-points-engine/
 ├── ROADMAP.MD                     # Phased feature roadmap
 ├── SPEC.MD                        # Full project specification
 ├── CLAUDE.MD                      # Claude Code context file
+├── render.yaml                    # Render one-click deploy config
 ├── railway.toml                   # Railway deployment config
 ├── build.sh                       # Railway build + start script
 └── docker-compose.yml             # Local dev
@@ -303,9 +304,40 @@ python -m pytest backend/tests/test_scoring.py -v
 
 ---
 
+## Deploy to Render
+
+F1 Points Engine ships with a `render.yaml` for one-click deploy on [Render](https://render.com).
+
+1. **Fork** this repository on GitHub
+2. Go to [render.com](https://render.com) → **New** → **Blueprint** → connect your fork
+3. Render reads `render.yaml` and creates the web service automatically
+4. Click the generated URL — the full app is live
+
+The service builds the React frontend, seeds the database, then starts FastAPI which serves both the API (`/api/*`) and the pre-built React app (`/`).
+
+| Render environment variable | Notes |
+|---|---|
+| `DATABASE_URL` | Defaults to SQLite (resets each deploy). Set a Render Postgres URL for persistence. |
+| `PORT` | Injected automatically by Render — do not override. |
+
+### Cold start on the free tier
+
+The Render free tier spins down services after ~15 minutes of inactivity. The **first request after a period of inactivity** can take up to 30 seconds while the service wakes up. This is expected and completely normal.
+
+The app handles this gracefully — a friendly loading screen is shown while the backend starts, and it automatically retries every 3 seconds until the service is ready. No action is required from users.
+
+**Optional: keep the service warm** — set up a free cron job at [cron-job.org](https://cron-job.org) to hit your `/health` endpoint every 10 minutes. This prevents the service from sleeping entirely.
+
+```
+URL:      https://your-app.onrender.com/health
+Schedule: Every 10 minutes
+```
+
+---
+
 ## Deploy to Railway
 
-F1 Points Engine deploys as a **single Railway service** — FastAPI serves both the API and the pre-built React frontend.
+F1 Points Engine also supports Railway deployment — FastAPI serves both the API and the pre-built React frontend.
 
 1. **Fork** this repository on GitHub
 2. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo** → select your fork
