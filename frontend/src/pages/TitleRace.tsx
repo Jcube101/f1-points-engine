@@ -39,13 +39,46 @@ function ProbBar({ entry }: { entry: TitleOddsEntry }) {
   )
 }
 
+/** Animate a fake progress bar from 0→93% over ~4s, then caller snaps to 100. */
+function useSimProgress(active: boolean) {
+  const [progress, setProgress] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (active) {
+      setProgress(0)
+      const start = Date.now()
+      const DURATION = 4000 // ms — approximate compute time
+      timerRef.current = setInterval(() => {
+        const elapsed = Date.now() - start
+        // Ease-out: fast at start, slows near 93%
+        const raw = elapsed / DURATION
+        const eased = 1 - Math.pow(1 - Math.min(raw, 1), 2)
+        setProgress(Math.min(Math.round(eased * 93), 93))
+      }, 80)
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current)
+      // Caller sets to 100 when done; let it settle then reset
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [active])
+
+  return progress
+}
+
 export default function TitleRace() {
   const [paceMultipliers, setPaceMultipliers] = useState<Record<string, number>>({})
   const [simResult, setSimResult] = useState<TitleOddsEntry[] | null>(null)
   const [summary, setSummary] = useState<string>('')
   const [remainingRaces, setRemainingRaces] = useState<number>(0)
   const [simulating, setSimulating] = useState(false)
+  const [simProgress, setSimProgress] = useState(0)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const fakeProgress = useSimProgress(simulating)
+
+  // While simulating use the animated progress; show 100 briefly when done
+  const displayProgress = simulating ? fakeProgress : simProgress
 
   // Live WDC standings
   const { data: standings, isLoading: standingsLoading } = useQuery({
@@ -71,11 +104,13 @@ export default function TitleRace() {
 
   const runWithPace = useCallback(async (multipliers: Record<string, number>) => {
     setSimulating(true)
+    setSimProgress(0)
     try {
       const paceList = Object.entries(multipliers)
         .filter(([, v]) => v !== 1.0)
         .map(([driver_code, multiplier]) => ({ driver_code, multiplier }))
       const result = await fetchTitleOdds(2026, paceList)
+      setSimProgress(100)
       setSimResult(result.odds)
       setSummary(result.scenario_summary)
       setRemainingRaces(result.remaining_races)
@@ -153,14 +188,25 @@ export default function TitleRace() {
 
       {/* Section B: Monte Carlo Odds Calculator */}
       <section className="bg-gray-900 rounded-xl p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Monte Carlo Odds Calculator</h2>
-          {simulating && <span className="text-xs text-gray-400 animate-pulse">Simulating…</span>}
-        </div>
+        <h2 className="text-lg font-semibold text-white">Monte Carlo Odds Calculator</h2>
 
-        {loading ? (
-          <p className="text-gray-400 text-sm">Running 10,000 simulations…</p>
-        ) : (
+        {/* Progress bar — shown during initial load or slider re-simulation */}
+        {(loading || simulating) && (
+          <div className="space-y-2">
+            <p className="text-gray-400 text-sm">Running 10,000 simulations…</p>
+            <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-red-600 rounded-full transition-all duration-150"
+                style={{ width: `${loading ? fakeProgress : displayProgress}%` }}
+              />
+            </div>
+            <p className="text-gray-500 text-xs text-right">
+              {loading ? fakeProgress : displayProgress}%
+            </p>
+          </div>
+        )}
+
+        {!loading && (
           <>
             {remainingRaces > 0 && (
               <p className="text-gray-400 text-xs">{remainingRaces} races remaining · 10,000 simulations</p>

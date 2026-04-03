@@ -75,10 +75,10 @@ export default function ScoreValidator() {
         {isLoading ? (
           <p className="p-6 text-gray-400 text-center">Loading validation records...</p>
         ) : records.length === 0 ? (
-          <div className="p-6 text-center">
-            <p className="text-gray-400">No validation records yet.</p>
-            <p className="text-xs text-gray-600 mt-1">
-              Run validation after a race to compare scores.
+          <div className="p-8 text-center space-y-2">
+            <p className="text-gray-300 font-medium">No race validations yet for the 2026 season.</p>
+            <p className="text-gray-500 text-sm max-w-sm mx-auto">
+              Score accuracy will appear here after the first race weekend. Use the button above to run validation once a race has completed.
             </p>
           </div>
         ) : (

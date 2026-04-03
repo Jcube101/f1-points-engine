@@ -270,26 +270,25 @@ FALLBACK_CALENDAR_2026 = [
     {"round": "1",  "raceName": "Australian Grand Prix",    "Circuit": {"circuitName": "Albert Park"},    "date": "2026-03-08", "season": "2026"},
     {"round": "2",  "raceName": "Chinese Grand Prix",        "Circuit": {"circuitName": "Shanghai"},       "date": "2026-03-15", "season": "2026"},
     {"round": "3",  "raceName": "Japanese Grand Prix",       "Circuit": {"circuitName": "Suzuka"},         "date": "2026-03-29", "season": "2026"},
-    {"round": "4",  "raceName": "Bahrain Grand Prix",        "Circuit": {"circuitName": "Bahrain"},        "date": "2026-04-12", "season": "2026"},
-    {"round": "5",  "raceName": "Saudi Arabian Grand Prix",  "Circuit": {"circuitName": "Jeddah"},         "date": "2026-04-19", "season": "2026"},
-    {"round": "6",  "raceName": "Miami Grand Prix",          "Circuit": {"circuitName": "Miami"},          "date": "2026-05-03", "season": "2026"},  # sprint
-    {"round": "7",  "raceName": "Canadian Grand Prix",       "Circuit": {"circuitName": "Montreal"},       "date": "2026-05-24", "season": "2026"},  # sprint
-    {"round": "8",  "raceName": "Spanish Grand Prix",        "Circuit": {"circuitName": "Barcelona"},      "date": "2026-06-07", "season": "2026"},
-    {"round": "9",  "raceName": "Monaco Grand Prix",         "Circuit": {"circuitName": "Monaco"},         "date": "2026-06-21", "season": "2026"},
-    {"round": "10", "raceName": "Austrian Grand Prix",       "Circuit": {"circuitName": "Red Bull Ring"},  "date": "2026-06-28", "season": "2026"},
-    {"round": "11", "raceName": "British Grand Prix",        "Circuit": {"circuitName": "Silverstone"},    "date": "2026-07-05", "season": "2026"},  # sprint
-    {"round": "12", "raceName": "Belgian Grand Prix",        "Circuit": {"circuitName": "Spa"},            "date": "2026-07-19", "season": "2026"},
-    {"round": "13", "raceName": "Hungarian Grand Prix",      "Circuit": {"circuitName": "Hungaroring"},    "date": "2026-08-02", "season": "2026"},
-    {"round": "14", "raceName": "Dutch Grand Prix",          "Circuit": {"circuitName": "Zandvoort"},      "date": "2026-08-30", "season": "2026"},  # sprint
-    {"round": "15", "raceName": "Italian Grand Prix",        "Circuit": {"circuitName": "Monza"},          "date": "2026-09-07", "season": "2026"},
-    {"round": "16", "raceName": "Azerbaijan Grand Prix",     "Circuit": {"circuitName": "Baku"},           "date": "2026-09-21", "season": "2026"},
-    {"round": "17", "raceName": "Singapore Grand Prix",      "Circuit": {"circuitName": "Marina Bay"},     "date": "2026-10-05", "season": "2026"},  # sprint
-    {"round": "18", "raceName": "United States Grand Prix",  "Circuit": {"circuitName": "Austin"},         "date": "2026-10-18", "season": "2026"},
-    {"round": "19", "raceName": "Mexico City Grand Prix",    "Circuit": {"circuitName": "Mexico City"},    "date": "2026-10-25", "season": "2026"},
-    {"round": "20", "raceName": "São Paulo Grand Prix",      "Circuit": {"circuitName": "Sao Paulo"},      "date": "2026-11-08", "season": "2026"},
-    {"round": "21", "raceName": "Las Vegas Grand Prix",      "Circuit": {"circuitName": "Las Vegas"},      "date": "2026-11-22", "season": "2026"},
-    {"round": "22", "raceName": "Qatar Grand Prix",          "Circuit": {"circuitName": "Losail"},         "date": "2026-11-29", "season": "2026"},
-    {"round": "23", "raceName": "Abu Dhabi Grand Prix",      "Circuit": {"circuitName": "Yas Marina"},     "date": "2026-12-06", "season": "2026"},
+    # Bahrain (Apr 12) and Saudi Arabian (Apr 19) cancelled from 2026 calendar
+    {"round": "4",  "raceName": "Miami Grand Prix",          "Circuit": {"circuitName": "Miami"},          "date": "2026-05-03", "season": "2026"},  # sprint
+    {"round": "5",  "raceName": "Canadian Grand Prix",       "Circuit": {"circuitName": "Montreal"},       "date": "2026-05-24", "season": "2026"},  # sprint
+    {"round": "6",  "raceName": "Spanish Grand Prix",        "Circuit": {"circuitName": "Barcelona"},      "date": "2026-06-07", "season": "2026"},
+    {"round": "7",  "raceName": "Monaco Grand Prix",         "Circuit": {"circuitName": "Monaco"},         "date": "2026-06-21", "season": "2026"},
+    {"round": "8",  "raceName": "Austrian Grand Prix",       "Circuit": {"circuitName": "Red Bull Ring"},  "date": "2026-06-28", "season": "2026"},
+    {"round": "9",  "raceName": "British Grand Prix",        "Circuit": {"circuitName": "Silverstone"},    "date": "2026-07-05", "season": "2026"},  # sprint
+    {"round": "10", "raceName": "Belgian Grand Prix",        "Circuit": {"circuitName": "Spa"},            "date": "2026-07-19", "season": "2026"},
+    {"round": "11", "raceName": "Hungarian Grand Prix",      "Circuit": {"circuitName": "Hungaroring"},    "date": "2026-08-02", "season": "2026"},
+    {"round": "12", "raceName": "Dutch Grand Prix",          "Circuit": {"circuitName": "Zandvoort"},      "date": "2026-08-30", "season": "2026"},  # sprint
+    {"round": "13", "raceName": "Italian Grand Prix",        "Circuit": {"circuitName": "Monza"},          "date": "2026-09-07", "season": "2026"},
+    {"round": "14", "raceName": "Azerbaijan Grand Prix",     "Circuit": {"circuitName": "Baku"},           "date": "2026-09-21", "season": "2026"},
+    {"round": "15", "raceName": "Singapore Grand Prix",      "Circuit": {"circuitName": "Marina Bay"},     "date": "2026-10-05", "season": "2026"},  # sprint
+    {"round": "16", "raceName": "United States Grand Prix",  "Circuit": {"circuitName": "Austin"},         "date": "2026-10-18", "season": "2026"},
+    {"round": "17", "raceName": "Mexico City Grand Prix",    "Circuit": {"circuitName": "Mexico City"},    "date": "2026-10-25", "season": "2026"},
+    {"round": "18", "raceName": "São Paulo Grand Prix",      "Circuit": {"circuitName": "Sao Paulo"},      "date": "2026-11-08", "season": "2026"},
+    {"round": "19", "raceName": "Las Vegas Grand Prix",      "Circuit": {"circuitName": "Las Vegas"},      "date": "2026-11-22", "season": "2026"},
+    {"round": "20", "raceName": "Qatar Grand Prix",          "Circuit": {"circuitName": "Losail"},         "date": "2026-11-29", "season": "2026"},
+    {"round": "21", "raceName": "Abu Dhabi Grand Prix",      "Circuit": {"circuitName": "Yas Marina"},     "date": "2026-12-06", "season": "2026"},
 ]
 
 
@@ -484,8 +483,28 @@ async def seed_drivers(db: Session, constructor_id_map: dict[str, int]) -> dict[
 
 
 async def seed_races(db: Session, calendar: list[dict], season_year: int) -> dict[int, int]:
-    """Seed race calendar for a given season. Returns round_number → DB id mapping."""
+    """Seed race calendar for a given season. Returns round_number → DB id mapping.
+
+    Also removes any DB rows for races not present in the authoritative calendar
+    (handles cancellations: e.g. Bahrain + Saudi Arabian removed from 2026).
+    """
     sprint_set = SPRINT_RACES_2026 if season_year == 2026 else SPRINT_RACES
+    canonical_rounds = {int(r.get("round", 0)) for r in calendar}
+    canonical_names = {r.get("raceName", "") for r in calendar}
+
+    # Delete any races in this season that are no longer in the authoritative calendar
+    stale = (
+        db.query(Race)
+        .filter(Race.season == season_year)
+        .filter(Race.round_number.notin_(canonical_rounds))
+        .all()
+    )
+    for s in stale:
+        logger.info("  Removing cancelled/stale race R%d [%d]: %s", s.round_number, season_year, s.name)
+        db.delete(s)
+    if stale:
+        db.flush()
+
     round_map: dict[int, int] = {}
     for race in calendar:
         round_num = int(race.get("round", 0))
@@ -497,7 +516,11 @@ async def seed_races(db: Session, calendar: list[dict], season_year: int) -> dic
         circuit_type = CIRCUIT_TYPES.get(name, "balanced")
         session_type = "sprint_race" if name in sprint_set else "race"
 
+        # Match by round_number OR by race name (handles renumbering after cancellations)
         existing = db.query(Race).filter_by(round_number=round_num, season=season_year).first()
+        if not existing:
+            existing = db.query(Race).filter_by(name=name, season=season_year).first()
+
         if not existing:
             r = Race(
                 name=name, circuit=circuit, country=country, date=date,
@@ -509,10 +532,11 @@ async def seed_races(db: Session, calendar: list[dict], season_year: int) -> dic
             round_map[round_num] = r.id
             logger.info("  Race %d [%d]: %s (%s)", round_num, season_year, name, circuit_type)
         else:
-            # Update date and session_type to correct any stale values
+            # Update all fields to correct any stale values (including renumbering)
             existing.date = date
             existing.session_type = session_type
             existing.name = name
+            existing.round_number = round_num
             existing.circuit_type = circuit_type
             round_map[round_num] = existing.id
             logger.info("  Updated race %d [%d]: %s -> %s", round_num, season_year, name, date)
