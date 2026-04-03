@@ -6,21 +6,25 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
+      # Mount live source into /app/backend/ for hot-reload.
+      # /app is the WORKDIR and PYTHONPATH, so `from backend.X import Y` resolves.
+      - ./backend:/app/backend
+      # Persist the SQLite database across container restarts
       - db_data:/app/data
     environment:
       - DATABASE_URL=sqlite:///./data/f1_engine.db
+      - PYTHONPATH=/app
     command: >
-      sh -c "python seed.py && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+      sh -c "python backend/seed.py &&
+             uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
     build: ./frontend
     ports:
-      - "5173:5173"
+      # Nginx inside the container listens on port 80; map to 5173 for local dev
+      - "5173:80"
     depends_on:
       - backend
-    environment:
-      - VITE_API_URL=http://localhost:8000
 
 volumes:
   db_data:
