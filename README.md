@@ -187,7 +187,7 @@ Tables created automatically by SQLAlchemy `create_all()` on startup:
 |---|---|
 | `constructors` | 11 teams (2026 grid, including Cadillac and Audi) |
 | `drivers` | 24 drivers (22 active + TSU + DOO retained for 2025 history, `price=0`) |
-| `races` | 47 races (24 rounds 2025 + 23 rounds 2026, corrected local-venue dates) |
+| `races` | 45 races (24 rounds 2025 + 21 rounds 2026) |
 | `race_results` | Qualifying pos, race pos, sprint pos, DNF/DSQ/fastest lap per driver per race |
 | `fantasy_points` | Computed fantasy point totals per driver per race |
 | `driver_circuit_profiles` | Per-driver average pts by circuit type (street / power / balanced) — 60 rows |
@@ -197,9 +197,9 @@ Seed counts after `python backend/seed.py`:
 ```
 constructors:           11
 drivers:                24   (22 active + 2 retired/2025-only)
-races:                  47   (24 in 2025 + 23 in 2026)
-race_results:          576
-fantasy_points:        576
+races:                  45   (24 in 2025 + 21 in 2026)
+race_results:          480
+fantasy_points:        480
 driver_circuit_profiles: 60
 ```
 
