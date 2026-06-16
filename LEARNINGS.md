@@ -422,4 +422,46 @@ for (const [code, score] of Object.entries(race.driver_fits)) {
 
 ---
 
-*LEARNINGS.MD version: 1.0 | Entries: 26 | Last updated: March 2026*
+## Deployment & Environment
+
+### L-027 · Python 3.13 + `pydantic<2.10.0` fails to build on aarch64
+
+**Context:** Installing `backend/requirements.txt` on a Raspberry Pi 5 (Debian 13, Python 3.13, aarch64).
+
+**Problem:** `pydantic-core` has no pre-built wheel for that combination, so pip builds it from source via Rust/maturin. The build fails because the bundled PyO3 0.21.1 does not support Python 3.13.
+
+**Fix:** Pin `pydantic>=2.10.4`, which ships pre-built aarch64 wheels for Python 3.13 — no Rust toolchain or source build required.
+
+---
+
+### L-028 · Python 3.13 + SQLAlchemy 2.0.30 crashes at import
+
+**Context:** Running `python backend/seed.py` under Python 3.13.
+
+**Problem:** SQLAlchemy 2.0.30 raises `TypeError: Can't replace canonical symbol for '__firstlineno__'` at import time. Python 3.13 introduced the `__firstlineno__` attribute on classes, which collides with SQLAlchemy's symbol/flag machinery in that release.
+
+**Fix:** Upgrade to `SQLAlchemy>=2.0.51`, which handles the new attribute correctly.
+
+---
+
+### L-029 · Debian 13 ships only Python 3.13 — do not assume 3.12 is available
+
+**Context:** Provisioning the Pi for the migration.
+
+**Problem:** Debian 13 (Trixie) does not provide Python 3.12 in the apt repos — 3.13 is the system default. You can't `apt install python3.12` to dodge a 3.13 incompatibility.
+
+**Rule:** Don't assume an older interpreter is one apt command away. Pin dependencies to versions that publish 3.13 wheels (see L-027, L-028) rather than pinning the interpreter down.
+
+---
+
+### L-030 · Free-tier cold starts make a live race tool unusable — self-host on the Pi
+
+**Context:** The app was originally deployed to Railway/Render free tiers.
+
+**Problem:** Free-tier services spin down after inactivity; the first request then takes 30–90s+ to wake. For a tool whose whole point is tracking points *live during a race session*, that latency is fatal.
+
+**Decision:** Self-host on a Raspberry Pi 5 (8GB) as a systemd service behind a Cloudflare Tunnel (`https://f1.job-joseph.com`). An always-on service eliminates cold starts entirely, with no meaningful latency tradeoff for a SQLite/FastAPI workload of this size.
+
+---
+
+*LEARNINGS.MD version: 1.1 | Entries: 30 | Last updated: June 2026*

@@ -42,7 +42,8 @@
 
 ### Deployment
 - Docker + docker-compose for local dev
-- README must document deployment to Railway, Render, and Fly.io
+- Production: self-hosted on a Raspberry Pi 5 (8GB) — FastAPI on port 8011 behind a Cloudflare Tunnel at https://f1.job-joseph.com, always-on with no cold starts
+- README also documents deployment to Railway, Render, and Fly.io as managed-platform alternatives
 
 ### Data Sources
 - **Primary race data**: OpenF1 API (https://openf1.org) — free, no auth, real-time lap data

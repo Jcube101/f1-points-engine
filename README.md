@@ -306,6 +306,8 @@ python -m pytest backend/tests/test_scoring.py -v
 
 ## Deploy to Render
 
+> **Canonical production is now the Pi.** F1 Points Engine is self-hosted on a Raspberry Pi 5 (8GB) — FastAPI on port 8011 behind a Cloudflare Tunnel at **https://f1.job-joseph.com**, always-on with no cold starts. The Render instructions below are kept for contributors who prefer a managed platform.
+
 F1 Points Engine ships with a `render.yaml` for one-click deploy on [Render](https://render.com).
 
 1. **Fork** this repository on GitHub
@@ -326,6 +328,8 @@ The Render free tier spins down services after ~15 minutes of inactivity. The **
 
 The app handles this gracefully — a friendly loading screen is shown while the backend starts, and it automatically retries every 3 seconds until the service is ready. No action is required from users.
 
+**This cold-start limitation is exactly why production moved to the Pi.** A live race tool needs to respond instantly during a session; a self-hosted always-on Raspberry Pi 5 has no spin-down, eliminating cold starts entirely.
+
 **Optional: keep the service warm** — set up a free cron job at [cron-job.org](https://cron-job.org) to hit your `/health` endpoint every 10 minutes. This prevents the service from sleeping entirely.
 
 ```
@@ -336,6 +340,8 @@ Schedule: Every 10 minutes
 ---
 
 ## Deploy to Railway
+
+> **Canonical production is now the Pi.** F1 Points Engine is self-hosted on a Raspberry Pi 5 (8GB) at **https://f1.job-joseph.com** (FastAPI on port 8011 + Cloudflare Tunnel, always-on, no cold starts). The Railway instructions below remain for contributors who want to use Railway.
 
 F1 Points Engine also supports Railway deployment — FastAPI serves both the API and the pre-built React frontend.
 

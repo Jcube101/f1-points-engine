@@ -36,7 +36,7 @@ Do not build Phase 3 features unless explicitly instructed.
 | Scheduler | APScheduler |
 | HTTP client | httpx (async) |
 | Real-time | WebSocket via FastAPI |
-| Deployment | Railway (single service: FastAPI serves built React app) |
+| Deployment | Raspberry Pi 5 8GB — FastAPI on port 8011 + Cloudflare Tunnel (production, always-on). Railway config retained as a dev/alt option |
 
 ---
 
@@ -66,6 +66,10 @@ cd frontend
 npm install
 npm run dev
 ```
+
+> **Python 3.13 / Pi note**: Requires `pydantic>=2.10.4` and `SQLAlchemy>=2.0.51` for
+> Python 3.13 (the default on Debian 13, which the production Pi runs). `requirements.txt`
+> already reflects these versions.
 
 ---
 
@@ -221,7 +225,15 @@ Target: 100% match with official scores. Discrepancies reveal scoring rule bugs.
 
 ## Deployment
 
-### Railway (production)
+### Pi (production)
+- Service: `f1-points-engine.service` (systemd, enabled at boot)
+- Port: 8011, bound to 127.0.0.1
+- Public URL: https://f1.job-joseph.com (Cloudflare Tunnel)
+- Frontend: served as StaticFiles from `frontend/dist/`
+- No cold starts, always-on
+- To deploy changes: `git pull` → `npm run build` (if frontend changed) → `sudo systemctl restart f1-points-engine`
+
+### Railway (alternative / dev)
 `railway.toml` + root `Dockerfile` — single service. FastAPI serves the built React app
 as static files (`frontend/dist/`) from `/`, API from `/api/*`, WebSocket at `/ws/live`.
 
