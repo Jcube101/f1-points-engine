@@ -18,8 +18,11 @@ F1 Points Engine is an open source web app that helps F1 fans win their fantasy 
 
 ## Current Phase
 
-**Phase 1 + Phase 2 Intelligence Layer** are complete and stable. See `ROADMAP.MD` for what is in scope.
-Do not build Phase 3 features unless explicitly instructed.
+**Phase 1 + Phase 2 Intelligence Layer + Phase 3 Championship Simulator** are complete and stable.
+See `ROADMAP.MD` for detail. The Phase 3 Title Odds Calculator (Monte Carlo) is live at
+`/api/simulator/title-odds` and the `/title-race` page; its championship baseline uses **real WDC
+points** fetched from Jolpica, not fantasy totals. Phase 3 Scenario Builder / Championship Math /
+Season Replay remain future work — do not build those unless explicitly instructed.
 
 ---
 
@@ -86,7 +89,8 @@ backend/data/ergast_client.py    ← Ergast/Jolpica API wrapper (historical + ca
 backend/data/fantasy_validator.py ← Cross-check scores vs official F1 Fantasy API
 backend/scheduler/live_poller.py  ← Polls OpenF1 every 30s during race sessions
 backend/seed.py                  ← One-time DB seeding: 2026 drivers/constructors,
-                                    2025+2026 calendars, 2025 season results (generated),
+                                    2025+2026 calendars, 2025 results (generated) + real 2026
+                                    results for completed rounds (fetched from Jolpica),
                                     xP scores, circuit profiles. Run: python backend/seed.py
 backend/api/routes/transfers.py  ← Phase 2: Transfer Planner endpoint
 frontend/src/pages/              ← One file per page/route
@@ -141,6 +145,8 @@ frontend/tailwind.config.ts      ← xs breakpoint (390px), scrollbar-none utili
   - `arvid_lindblad` (not ayumu) — Swedish, Racing Bulls
 - 2025-only drivers (price=0, not on 2026 grid): `yuki_tsunoda` (TSU), `jack_doohan` (DOO) — seeded in DB to preserve 2025 race results
 - 2025 results: deterministically generated with `random.Random(42)` — strength profiles in `DRIVER_STRENGTH_2025`
+- 2026 results: real data fetched from Jolpica for completed rounds (`COMPLETED_2026_ROUNDS`, currently 7) via `seed_2026_results`; falls back to deterministic generation per round if the API is unreachable. `RaceResult.data_source` flags each row (`jolpica` vs `generated`)
+- 2026 calendar is 22 rounds (no Bahrain/Saudi; Barcelona GP R7 and the new Madrid "Spanish GP" R14 are distinct; "Brazilian GP" replaces "São Paulo GP"). 2026 circuit types live in `CIRCUIT_TYPES_2026` (separate from 2025's `CIRCUIT_TYPES`)
 - Mid-season swap: `get_2025_constructor(code, round_num)` in seed.py handles LAW/TSU — LAW at Red Bull rounds 1–2, TSU at Red Bull rounds 3–24
 - Driver prices should match official 2026 F1 Fantasy opening prices (see `DRIVER_PRICES` in seed.py)
 - Season is controlled by `CURRENT_SEASON` in `backend/core/config.py` (currently 2026)

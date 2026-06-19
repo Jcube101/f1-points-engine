@@ -51,7 +51,7 @@ export default function ConstructorCard({ constructor: c, selected, onSelect, on
       {onCompareTeammates && (
         <button
           onClick={(e) => { e.stopPropagation(); onCompareTeammates(c.id) }}
-          className="w-full border-t border-gray-700/50 py-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors min-h-[36px] flex items-center justify-center gap-1"
+          className="w-full border-t border-gray-700/50 py-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors min-h-[44px] flex items-center justify-center gap-1"
         >
           ⚖ Compare Teammates
         </button>

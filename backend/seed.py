@@ -3,10 +3,10 @@ Seed Script — F1 Points Engine
 ================================
 Run once to populate the database with:
 1. 2025 race calendar + generated historical race results (24 rounds)
-2. 2026 race calendar (upcoming)
+2. 2026 race calendar (22 rounds) + real results for completed rounds (fetched from Jolpica)
 3. Driver + constructor list with real 2026 fantasy prices (11 constructors, 22 drivers)
-4. 2025 fantasy points computed for each driver/race using scoring engine
-5. Initial xP scores for all 2026 drivers
+4. Fantasy points computed for each driver/race using the scoring engine
+5. xP scores + circuit profiles from all seeded history
 
 Run with:
     cd backend && python seed.py
@@ -27,8 +27,7 @@ from sqlalchemy.orm import Session
 from backend.db.database import engine, init_db, SessionLocal
 from backend.data.models import Driver, Constructor, Race, RaceResult, FantasyPoints, DriverCircuitProfile
 from backend.data.ergast_client import (
-    get_race_calendar, get_drivers, get_constructors,
-    get_season_results, get_season_qualifying,
+    get_race_results, get_qualifying_results, get_sprint_results,
 )
 from backend.core.scoring import (
     qualifying_position_points, qualifying_bonus_points,
@@ -136,14 +135,47 @@ SPRINT_RACES = {
     "Qatar Grand Prix",
 }
 
-# 2026 sprint weekends differ from 2025
+# 2026 sprint weekends (per the official 2026 calendar) differ from 2025
 SPRINT_RACES_2026 = {
+    "Chinese Grand Prix",
     "Miami Grand Prix",
     "Canadian Grand Prix",
     "British Grand Prix",
     "Dutch Grand Prix",
     "Singapore Grand Prix",
 }
+
+# Circuit-type map for the 2026 calendar. Kept separate from CIRCUIT_TYPES (2025)
+# because some names map to different venues across seasons — e.g. the 2026
+# "Spanish Grand Prix" is the new Madrid (Madring) street circuit, while in 2025
+# it was Barcelona, which in 2026 is the separate "Barcelona Grand Prix".
+CIRCUIT_TYPES_2026: dict[str, str] = {
+    "Australian Grand Prix":    "street",
+    "Chinese Grand Prix":       "balanced",
+    "Japanese Grand Prix":      "power",
+    "Miami Grand Prix":         "balanced",
+    "Canadian Grand Prix":      "balanced",
+    "Monaco Grand Prix":        "street",
+    "Barcelona Grand Prix":     "power",
+    "Austrian Grand Prix":      "balanced",
+    "British Grand Prix":       "balanced",
+    "Belgian Grand Prix":       "power",
+    "Hungarian Grand Prix":     "balanced",
+    "Dutch Grand Prix":         "balanced",
+    "Italian Grand Prix":       "power",
+    "Spanish Grand Prix":       "street",   # Madrid / Madring (new 2026 venue)
+    "Azerbaijan Grand Prix":    "street",
+    "Singapore Grand Prix":     "street",
+    "United States Grand Prix": "balanced",
+    "Mexico City Grand Prix":   "power",
+    "Brazilian Grand Prix":     "balanced",
+    "Las Vegas Grand Prix":     "street",
+    "Qatar Grand Prix":         "balanced",
+    "Abu Dhabi Grand Prix":     "balanced",
+}
+
+# 2026 rounds that have already been completed and have real results to ingest.
+COMPLETED_2026_ROUNDS = 7
 
 # ─── 2025 drivers on the grid (full season, 20 drivers) ───────────────────────
 # These are NOT in the 2026 roster but raced the full 2025 season
@@ -266,29 +298,33 @@ FALLBACK_CALENDAR = [
     {"round": "24", "raceName": "Abu Dhabi Grand Prix",      "Circuit": {"circuitName": "Yas Marina"},    "date": "2025-12-07", "season": "2025"},
 ]
 
+# 2026 calendar — 22 rounds, mirrors the authoritative schedule (Jolpica/Ergast).
+# Notable 2026 changes vs 2025: no Bahrain/Saudi, Barcelona Grand Prix (R7) and the
+# new Madrid "Spanish Grand Prix" (R14) are distinct races, "Brazilian Grand Prix"
+# replaces the "São Paulo Grand Prix" name.
 FALLBACK_CALENDAR_2026 = [
-    {"round": "1",  "raceName": "Australian Grand Prix",    "Circuit": {"circuitName": "Albert Park"},    "date": "2026-03-08", "season": "2026"},
-    {"round": "2",  "raceName": "Chinese Grand Prix",        "Circuit": {"circuitName": "Shanghai"},       "date": "2026-03-15", "season": "2026"},
-    {"round": "3",  "raceName": "Japanese Grand Prix",       "Circuit": {"circuitName": "Suzuka"},         "date": "2026-03-29", "season": "2026"},
-    # Bahrain (Apr 12) and Saudi Arabian (Apr 19) cancelled from 2026 calendar
-    {"round": "4",  "raceName": "Miami Grand Prix",          "Circuit": {"circuitName": "Miami"},          "date": "2026-05-03", "season": "2026"},  # sprint
-    {"round": "5",  "raceName": "Canadian Grand Prix",       "Circuit": {"circuitName": "Montreal"},       "date": "2026-05-24", "season": "2026"},  # sprint
-    {"round": "6",  "raceName": "Spanish Grand Prix",        "Circuit": {"circuitName": "Barcelona"},      "date": "2026-06-07", "season": "2026"},
-    {"round": "7",  "raceName": "Monaco Grand Prix",         "Circuit": {"circuitName": "Monaco"},         "date": "2026-06-21", "season": "2026"},
-    {"round": "8",  "raceName": "Austrian Grand Prix",       "Circuit": {"circuitName": "Red Bull Ring"},  "date": "2026-06-28", "season": "2026"},
-    {"round": "9",  "raceName": "British Grand Prix",        "Circuit": {"circuitName": "Silverstone"},    "date": "2026-07-05", "season": "2026"},  # sprint
-    {"round": "10", "raceName": "Belgian Grand Prix",        "Circuit": {"circuitName": "Spa"},            "date": "2026-07-19", "season": "2026"},
-    {"round": "11", "raceName": "Hungarian Grand Prix",      "Circuit": {"circuitName": "Hungaroring"},    "date": "2026-08-02", "season": "2026"},
-    {"round": "12", "raceName": "Dutch Grand Prix",          "Circuit": {"circuitName": "Zandvoort"},      "date": "2026-08-30", "season": "2026"},  # sprint
-    {"round": "13", "raceName": "Italian Grand Prix",        "Circuit": {"circuitName": "Monza"},          "date": "2026-09-07", "season": "2026"},
-    {"round": "14", "raceName": "Azerbaijan Grand Prix",     "Circuit": {"circuitName": "Baku"},           "date": "2026-09-21", "season": "2026"},
-    {"round": "15", "raceName": "Singapore Grand Prix",      "Circuit": {"circuitName": "Marina Bay"},     "date": "2026-10-05", "season": "2026"},  # sprint
-    {"round": "16", "raceName": "United States Grand Prix",  "Circuit": {"circuitName": "Austin"},         "date": "2026-10-18", "season": "2026"},
-    {"round": "17", "raceName": "Mexico City Grand Prix",    "Circuit": {"circuitName": "Mexico City"},    "date": "2026-10-25", "season": "2026"},
-    {"round": "18", "raceName": "São Paulo Grand Prix",      "Circuit": {"circuitName": "Sao Paulo"},      "date": "2026-11-08", "season": "2026"},
-    {"round": "19", "raceName": "Las Vegas Grand Prix",      "Circuit": {"circuitName": "Las Vegas"},      "date": "2026-11-22", "season": "2026"},
-    {"round": "20", "raceName": "Qatar Grand Prix",          "Circuit": {"circuitName": "Losail"},         "date": "2026-11-29", "season": "2026"},
-    {"round": "21", "raceName": "Abu Dhabi Grand Prix",      "Circuit": {"circuitName": "Yas Marina"},     "date": "2026-12-06", "season": "2026"},
+    {"round": "1",  "raceName": "Australian Grand Prix",    "Circuit": {"circuitName": "Albert Park"},            "date": "2026-03-08", "season": "2026"},
+    {"round": "2",  "raceName": "Chinese Grand Prix",        "Circuit": {"circuitName": "Shanghai"},               "date": "2026-03-15", "season": "2026"},  # sprint
+    {"round": "3",  "raceName": "Japanese Grand Prix",       "Circuit": {"circuitName": "Suzuka"},                 "date": "2026-03-29", "season": "2026"},
+    {"round": "4",  "raceName": "Miami Grand Prix",          "Circuit": {"circuitName": "Miami"},                  "date": "2026-05-03", "season": "2026"},  # sprint
+    {"round": "5",  "raceName": "Canadian Grand Prix",       "Circuit": {"circuitName": "Circuit Gilles Villeneuve"}, "date": "2026-05-24", "season": "2026"},  # sprint
+    {"round": "6",  "raceName": "Monaco Grand Prix",         "Circuit": {"circuitName": "Monaco"},                 "date": "2026-06-07", "season": "2026"},
+    {"round": "7",  "raceName": "Barcelona Grand Prix",      "Circuit": {"circuitName": "Barcelona-Catalunya"},    "date": "2026-06-14", "season": "2026"},
+    {"round": "8",  "raceName": "Austrian Grand Prix",       "Circuit": {"circuitName": "Red Bull Ring"},          "date": "2026-06-28", "season": "2026"},
+    {"round": "9",  "raceName": "British Grand Prix",        "Circuit": {"circuitName": "Silverstone"},            "date": "2026-07-05", "season": "2026"},  # sprint
+    {"round": "10", "raceName": "Belgian Grand Prix",        "Circuit": {"circuitName": "Spa"},                    "date": "2026-07-19", "season": "2026"},
+    {"round": "11", "raceName": "Hungarian Grand Prix",      "Circuit": {"circuitName": "Hungaroring"},            "date": "2026-07-26", "season": "2026"},
+    {"round": "12", "raceName": "Dutch Grand Prix",          "Circuit": {"circuitName": "Zandvoort"},              "date": "2026-08-23", "season": "2026"},  # sprint
+    {"round": "13", "raceName": "Italian Grand Prix",        "Circuit": {"circuitName": "Monza"},                  "date": "2026-09-06", "season": "2026"},
+    {"round": "14", "raceName": "Spanish Grand Prix",        "Circuit": {"circuitName": "Madring"},                "date": "2026-09-13", "season": "2026"},
+    {"round": "15", "raceName": "Azerbaijan Grand Prix",     "Circuit": {"circuitName": "Baku"},                   "date": "2026-09-26", "season": "2026"},
+    {"round": "16", "raceName": "Singapore Grand Prix",      "Circuit": {"circuitName": "Marina Bay"},             "date": "2026-10-11", "season": "2026"},  # sprint
+    {"round": "17", "raceName": "United States Grand Prix",  "Circuit": {"circuitName": "Austin"},                 "date": "2026-10-25", "season": "2026"},
+    {"round": "18", "raceName": "Mexico City Grand Prix",    "Circuit": {"circuitName": "Mexico City"},            "date": "2026-11-01", "season": "2026"},
+    {"round": "19", "raceName": "Brazilian Grand Prix",      "Circuit": {"circuitName": "Interlagos"},             "date": "2026-11-08", "season": "2026"},
+    {"round": "20", "raceName": "Las Vegas Grand Prix",      "Circuit": {"circuitName": "Las Vegas"},              "date": "2026-11-22", "season": "2026"},
+    {"round": "21", "raceName": "Qatar Grand Prix",          "Circuit": {"circuitName": "Losail"},                 "date": "2026-11-29", "season": "2026"},
+    {"round": "22", "raceName": "Abu Dhabi Grand Prix",      "Circuit": {"circuitName": "Yas Marina"},             "date": "2026-12-06", "season": "2026"},
 ]
 
 
@@ -489,6 +525,7 @@ async def seed_races(db: Session, calendar: list[dict], season_year: int) -> dic
     (handles cancellations: e.g. Bahrain + Saudi Arabian removed from 2026).
     """
     sprint_set = SPRINT_RACES_2026 if season_year == 2026 else SPRINT_RACES
+    circuit_type_map = CIRCUIT_TYPES_2026 if season_year == 2026 else CIRCUIT_TYPES
     canonical_rounds = {int(r.get("round", 0)) for r in calendar}
     canonical_names = {r.get("raceName", "") for r in calendar}
 
@@ -513,7 +550,7 @@ async def seed_races(db: Session, calendar: list[dict], season_year: int) -> dic
         circuit = circuit_info.get("circuitName", "")
         country = circuit_info.get("Location", {}).get("country", "") or race.get("country", "")
         date = race.get("date", f"{season_year}-01-01")
-        circuit_type = CIRCUIT_TYPES.get(name, "balanced")
+        circuit_type = circuit_type_map.get(name, "balanced")
         session_type = "sprint_race" if name in sprint_set else "race"
 
         # Match by round_number OR by race name (handles renumbering after cancellations)
@@ -637,6 +674,219 @@ def seed_results(
     return inserted
 
 
+# Active 2026-grid driver codes (excludes the 2025-only TSU/DOO).
+ACTIVE_2026_CODES = [d["code"] for d in FALLBACK_DRIVERS if d["code"] not in DRIVERS_2025_ONLY]
+
+# Round → race name for the completed 2026 calendar (sprint detection + naming).
+_ROUND_NAME_2026 = {int(r["round"]): r["raceName"] for r in FALLBACK_CALENDAR_2026}
+
+
+def _classify_finish(position_text: str) -> tuple[int | None, bool, bool]:
+    """Map an Ergast positionText to (race_pos, dnf, dsq).
+
+    Digit → classified finisher at that position. 'D' → disqualified.
+    Anything else ('R', 'W', 'E', 'N', 'F') → did-not-finish / did-not-start.
+    """
+    if position_text and position_text.isdigit():
+        return int(position_text), False, False
+    if position_text == "D":
+        return None, False, True
+    return None, True, False
+
+
+def _generate_2026_round(round_num: int) -> list[dict]:
+    """Deterministic fallback for a 2026 round when the live API is unavailable.
+
+    Produces a plausible classified order for the active grid using a per-round
+    seeded RNG. Rows built from this are flagged data_source='generated' so they
+    can be replaced once real results are available.
+    """
+    rng = random.Random(round_num)
+    codes = list(ACTIVE_2026_CODES)
+    quali_order = rng.sample(codes, len(codes))
+    race_order = rng.sample(codes, len(codes))
+    is_sprint = _ROUND_NAME_2026.get(round_num) in SPRINT_RACES_2026
+    sprint_order = rng.sample(codes, len(codes)) if is_sprint else None
+    fl_winner = rng.choice(race_order[:6])
+
+    rows = []
+    for code in codes:
+        quali_pos = quali_order.index(code) + 1
+        race_pos = race_order.index(code) + 1
+        positions_gained = quali_pos - race_pos
+        rows.append({
+            "code": code,
+            "constructor_cid": None,  # resolved from current roster below
+            "quali_pos": quali_pos,
+            "q2_reached": quali_pos <= 15,
+            "q3_reached": quali_pos <= 10,
+            "race_pos": race_pos,
+            "dnf": False,
+            "dsq": False,
+            "grid": quali_pos,
+            "positions_gained_race": positions_gained,
+            "overtakes": max(0, positions_gained // 2) if positions_gained > 0 else 0,
+            "fastest_lap": code == fl_winner,
+            "sprint_pos": (sprint_order.index(code) + 1) if sprint_order else None,
+            "sprint_dnf": False,
+            "data_source": "generated",
+        })
+    return rows
+
+
+async def _fetch_2026_round(round_num: int) -> list[dict]:
+    """Fetch and normalise one 2026 round from Jolpica.
+
+    Returns a list of per-driver dicts (same shape as _generate_2026_round).
+    Falls back to deterministic generation if the API returns nothing.
+    """
+    results = await get_race_results(2026, round_num)
+    if not results:
+        logger.warning("  R%d 2026: no race results from API — using generated fallback", round_num)
+        return _generate_2026_round(round_num)
+
+    quali = await get_qualifying_results(2026, round_num)
+    quali_map: dict[str, dict] = {}
+    for q in quali:
+        code = q.get("Driver", {}).get("code", "")
+        if code:
+            quali_map[code] = {
+                "pos": int(q["position"]) if q.get("position") else None,
+                "q2": bool(q.get("Q2")),
+                "q3": bool(q.get("Q3")),
+            }
+
+    is_sprint = _ROUND_NAME_2026.get(round_num) in SPRINT_RACES_2026
+    sprint_map: dict[str, dict] = {}
+    if is_sprint:
+        for s in await get_sprint_results(2026, round_num):
+            code = s.get("Driver", {}).get("code", "")
+            if code:
+                s_pos, s_dnf, _ = _classify_finish(s.get("positionText", ""))
+                sprint_map[code] = {"pos": s_pos, "dnf": s_dnf}
+
+    rows = []
+    for r in results:
+        code = r.get("Driver", {}).get("code", "")
+        if not code:
+            continue
+        race_pos, dnf, dsq = _classify_finish(r.get("positionText", ""))
+        grid = int(r.get("grid", 0) or 0)
+        grid_eff = grid if grid > 0 else 20  # pit-lane start treated as back of grid
+        positions_gained = (grid_eff - race_pos) if race_pos is not None else 0
+        q = quali_map.get(code)
+        quali_pos = q["pos"] if q else None
+        sp = sprint_map.get(code)
+        rows.append({
+            "code": code,
+            "constructor_cid": r.get("Constructor", {}).get("constructorId"),
+            "quali_pos": quali_pos,
+            "q2_reached": q["q2"] if q else (quali_pos is not None and quali_pos <= 15),
+            "q3_reached": q["q3"] if q else (quali_pos is not None and quali_pos <= 10),
+            "race_pos": race_pos,
+            "dnf": dnf,
+            "dsq": dsq,
+            "grid": grid_eff,
+            "positions_gained_race": positions_gained,
+            "overtakes": max(0, positions_gained // 2) if positions_gained > 0 else 0,
+            "fastest_lap": r.get("FastestLap", {}).get("rank") == "1",
+            "sprint_pos": sp["pos"] if sp else None,
+            "sprint_dnf": sp["dnf"] if sp else False,
+            "data_source": "jolpica",
+        })
+    return rows
+
+
+async def seed_2026_results(
+    db: Session,
+    race_round_map: dict[int, int],
+    driver_code_map: dict[str, int],
+    constructor_id_map: dict[str, int],
+) -> int:
+    """Fetch real 2026 results for completed rounds, compute fantasy points, store them.
+
+    Pulls qualifying + race (+ sprint on sprint weekends) from Jolpica, runs each
+    driver through the scoring engine, and writes RaceResult + FantasyPoints rows
+    tagged with their data source. Idempotent (skips rows that already exist).
+    """
+    inserted = 0
+    for round_num in range(1, COMPLETED_2026_ROUNDS + 1):
+        race_id = race_round_map.get(round_num)
+        if not race_id:
+            logger.warning("  R%d 2026: no race row in DB, skipping", round_num)
+            continue
+
+        rows = await _fetch_2026_round(round_num)
+        for res in rows:
+            driver_id = driver_code_map.get(res["code"])
+            if not driver_id:
+                continue
+            # 2026 results use the driver's current team. Prefer the API-supplied
+            # constructor; fall back to the driver's seeded team.
+            constructor_id = constructor_id_map.get(res.get("constructor_cid") or "")
+            if not constructor_id:
+                drv = db.get(Driver, driver_id)
+                constructor_id = drv.team_id if drv else None
+            if not constructor_id:
+                continue
+
+            if db.query(RaceResult).filter_by(race_id=race_id, driver_id=driver_id).first():
+                continue
+
+            db.add(RaceResult(
+                race_id=race_id,
+                driver_id=driver_id,
+                constructor_id=constructor_id,
+                qualifying_pos=res["quali_pos"],
+                race_pos=res["race_pos"],
+                sprint_pos=res["sprint_pos"],
+                grid_pos=res["grid"],
+                dnf=res["dnf"],
+                dsq=res["dsq"],
+                fastest_lap=res["fastest_lap"],
+                driver_of_day=False,  # not exposed by Ergast/Jolpica
+                positions_gained_quali=0,
+                positions_gained_race=res["positions_gained_race"],
+                overtakes=res["overtakes"],
+                q2_reached=res["q2_reached"],
+                q3_reached=res["q3_reached"],
+                data_source=res["data_source"],
+            ))
+            db.flush()
+
+            # Fantasy points via the scoring engine (same path as 2025 seeding).
+            q_pts = qualifying_position_points(res["quali_pos"], res["dsq"])
+            q_bonus = qualifying_bonus_points(0, 0)
+            r_pts = race_position_points(res["race_pos"], res["dnf"], res["dsq"])
+            r_bonus = race_bonus_points(
+                res["positions_gained_race"], res["overtakes"], res["fastest_lap"], False,
+            )
+            s_pts = 0.0
+            if res["sprint_pos"] is not None or res["sprint_dnf"]:
+                s_pts = float(sprint_position_points(res["sprint_pos"], res["sprint_dnf"]))
+                s_pts += float(sprint_bonus_points(0, 0))
+            total = q_pts + q_bonus + r_pts + r_bonus + s_pts
+
+            if not db.query(FantasyPoints).filter_by(race_id=race_id, driver_id=driver_id).first():
+                db.add(FantasyPoints(
+                    race_id=race_id,
+                    driver_id=driver_id,
+                    qualifying_pts=float(q_pts + q_bonus),
+                    sprint_pts=float(s_pts),
+                    race_pts=float(r_pts + r_bonus),
+                    total_pts=float(total),
+                    xp_score=0.0,
+                ))
+                inserted += 1
+
+        db.commit()
+        src = rows[0]["data_source"] if rows else "n/a"
+        logger.info("  R%d 2026 (%s): %d drivers [%s]", round_num,
+                    _ROUND_NAME_2026.get(round_num, "?"), len(rows), src)
+
+    return inserted
+
+
 def compute_xp_scores(db: Session):
     """Compute and store xP scores for all drivers based on their recent fantasy points."""
     drivers = db.query(Driver).filter(Driver.price > 0).all()
@@ -657,18 +907,20 @@ def compute_xp_scores(db: Session):
 
 def seed_circuit_profiles(db: Session) -> int:
     """
-    Compute and store DriverCircuitProfile rows from 2025 season data.
+    Compute and store DriverCircuitProfile rows from all seeded race data.
 
     For each driver × circuit_type combination, calculates the average fantasy
-    points across all 2025 races of that type. Idempotent — deletes and rebuilds
-    all rows on each run.
+    points across every seeded race of that type (2025 history + completed 2026
+    rounds). Idempotent — deletes and rebuilds all rows on each run.
     """
     # Clear existing profiles to ensure idempotency
     db.query(DriverCircuitProfile).delete()
     db.commit()
 
-    races_2025 = db.query(Race).filter_by(season=2025).all()
-    race_by_id = {r.id: r for r in races_2025}
+    # Aggregate across all seeded seasons (2025 history + completed 2026 rounds)
+    # so circuit-fit reflects every race a driver has on record.
+    all_races = db.query(Race).all()
+    race_by_id = {r.id: r for r in all_races}
 
     # Build: driver_id -> circuit_type -> [total_pts]
     from collections import defaultdict
@@ -722,7 +974,7 @@ async def main():
         race_round_map_2025 = await seed_races(db, FALLBACK_CALENDAR, 2025)
         logger.info("  %d races seeded for 2025", len(race_round_map_2025))
 
-        logger.info("\nSeeding 2026 race calendar (24 rounds)...")
+        logger.info("\nSeeding 2026 race calendar (22 rounds)...")
         race_round_map_2026 = await seed_races(db, FALLBACK_CALENDAR_2026, 2026)
         logger.info("  %d races seeded for 2026", len(race_round_map_2026))
 
@@ -730,7 +982,11 @@ async def main():
         n_inserted = seed_results(db, race_round_map_2025, driver_code_map, constructor_id_map)
         logger.info("  %d fantasy point records inserted", n_inserted)
 
-        logger.info("\nComputing xP scores from 2025 history...")
+        logger.info("\nSeeding real 2026 results (rounds 1–%d) from Jolpica...", COMPLETED_2026_ROUNDS)
+        n_2026 = await seed_2026_results(db, race_round_map_2026, driver_code_map, constructor_id_map)
+        logger.info("  %d 2026 fantasy point records inserted", n_2026)
+
+        logger.info("\nComputing xP scores from recent history...")
         compute_xp_scores(db)
 
         logger.info("\nBuilding circuit profiles (driver avg pts per circuit type)...")

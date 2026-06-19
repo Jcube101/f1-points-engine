@@ -60,7 +60,8 @@ async def poll_and_broadcast() -> None:
             logger.debug("Session type not a race session: %s", session_name)
             return  # Don't poll non-race sessions
 
-        snapshot = await build_live_snapshot(session_key, session_type)
+        total_laps = session.get("total_laps")
+        snapshot = await build_live_snapshot(session_key, session_type, total_laps)
         await connection_manager.broadcast(snapshot)
 
     except Exception as exc:

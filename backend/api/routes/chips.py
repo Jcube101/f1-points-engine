@@ -28,7 +28,7 @@ async def chip_recommend(req: ChipRecommendRequest, db: Session = Depends(get_db
     Body: { race_id, chips_remaining[], team_value, transfers_banked, races_completed, wet_weather_forecast? }
     Response: { success, data: { chip, confidence, reason, alternatives } }
     """
-    race = db.query(Race).get(req.race_id)
+    race = db.get(Race, req.race_id)
     circuit_type = race.circuit_type if race else "balanced"
 
     # Rough DNF rate by circuit type (Phase 2: use real historical data)

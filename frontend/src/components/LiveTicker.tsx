@@ -32,7 +32,7 @@ export default function LiveTicker({ snapshot, userDriverCodes = [] }: Props) {
               </span>
               {snapshot.stale && (
                 <span className="text-xs text-yellow-500 border border-yellow-700 px-1.5 py-0.5 rounded font-medium">
-                  Stale
+                  ⚠ Stale data
                 </span>
               )}
             </div>

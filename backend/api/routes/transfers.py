@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_db
-from backend.data.models import Driver, FantasyPoints, Race, Constructor, DriverCircuitProfile
+from backend.data.models import Driver, FantasyPoints, Race, DriverCircuitProfile
 from backend.core.expected_points import calculate_xp
 from backend.core.config import CURRENT_SEASON
 
@@ -50,7 +50,6 @@ def _chip_suggestion(team_xps: list[float], total_xp: float) -> str | None:
 @router.get("/plan")
 async def get_transfer_plan(
     drivers: str = Query(default="", description="Comma-separated driver codes, e.g. VER,NOR,PIA,HAD,GAS"),
-    constructors: str = Query(default="", description="Comma-separated constructor codes, e.g. MCL,RBR"),
     season: int = Query(default=CURRENT_SEASON),
     db: Session = Depends(get_db),
 ):

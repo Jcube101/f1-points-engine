@@ -10,6 +10,7 @@ Endpoints used:
 - /laps — fastest lap tracking
 - /pit — pit stop data
 - /drivers — driver metadata
+- /starting_grid — grid positions for positions-gained calculation
 """
 
 import logging
@@ -24,14 +25,30 @@ logger = logging.getLogger(__name__)
 # In-memory cache: last successfully fetched data per endpoint
 _cache: dict[str, Any] = {}
 
+# Tracks whether any fetch since the last reset was served from cache (API downtime).
+# Reset at the start of build_live_snapshot and set True whenever _get falls back to cache.
+_served_from_cache: bool = False
+
+
+def _reset_cache_tracking() -> None:
+    """Reset the served-from-cache flag before building a fresh snapshot."""
+    global _served_from_cache
+    _served_from_cache = False
+
+
+def _any_served_from_cache() -> bool:
+    """Return True if any fetch since the last reset fell back to cached data."""
+    return _served_from_cache
+
 
 async def _get(path: str, params: dict | None = None) -> Optional[list[dict]]:
     """
     Make an async GET request to OpenF1 API.
 
     Returns deserialized JSON list on success, or cached value on failure.
-    Logs a warning if the API is unreachable.
+    Logs a warning if the API is unreachable and marks the snapshot as stale.
     """
+    global _served_from_cache
     url = f"{OPENF1_BASE_URL}{path}"
     cache_key = f"{path}:{params}"
     try:
@@ -43,6 +60,7 @@ async def _get(path: str, params: dict | None = None) -> Optional[list[dict]]:
             return data
     except Exception as exc:
         logger.warning("OpenF1 API unreachable (%s %s): %s. Returning cached data.", url, params, exc)
+        _served_from_cache = True
         return _cache.get(cache_key)
 
 
@@ -116,33 +134,50 @@ async def get_drivers(session_key: int) -> list[dict]:
     return data or []
 
 
-def get_stale_flag() -> bool:
-    """Return True if the last fetch populated from cache (indicating API downtime)."""
-    return bool(_cache)  # simplified — in prod, track last successful fetch timestamp
+async def get_starting_grid(session_key: int) -> list[dict]:
+    """
+    Fetch the starting grid for a session (for positions-gained calculation).
+
+    Args:
+        session_key: OpenF1 session identifier.
+
+    Returns:
+        List of grid records: {driver_number, position, ...}. Empty list on failure.
+    """
+    data = await _get("/starting_grid", {"session_key": session_key})
+    return data or []
 
 
-async def build_live_snapshot(session_key: int, session_type: str) -> dict:
+async def build_live_snapshot(
+    session_key: int, session_type: str, total_laps: int | None = None
+) -> dict:
     """
     Build a complete live race snapshot for WebSocket delivery.
 
     Args:
         session_key: OpenF1 session identifier.
         session_type: "race" | "qualifying" | "sprint"
+        total_laps: Scheduled total laps for the session. If None, falls back to the
+            max observed lap_number (else 0).
 
     Returns:
         Dict matching the WebSocket message format defined in SPEC.md.
-        Sets stale=True if data comes from cache due to API downtime.
+        Sets stale=True if any underlying fetch came from cache due to API downtime.
     """
     from datetime import datetime, timezone
     from backend.core.scoring import (
         race_position_points, qualifying_position_points,
-        sprint_position_points, race_bonus_points,
+        sprint_position_points, race_bonus_points, sprint_bonus_points,
     )
+
+    # Reset stale tracking; any cache fallback during the fetches below flips it.
+    _reset_cache_tracking()
 
     positions = await get_driver_positions(session_key)
     laps = await get_laps(session_key)
-    pit_stops = await get_pit_stops(session_key)
+    pit_stops = await get_pit_stops(session_key)  # noqa: F841 — reserved for constructor pit bonuses
     drivers_meta = await get_drivers(session_key)
+    grid = await get_starting_grid(session_key)
 
     # Map driver_number → metadata
     driver_map = {d["driver_number"]: d for d in drivers_meta}
@@ -153,6 +188,25 @@ async def build_live_snapshot(session_key: int, session_type: str) -> dict:
         dn = rec.get("driver_number")
         if dn and (dn not in latest_pos or rec.get("date", "") > latest_pos[dn].get("date", "")):
             latest_pos[dn] = rec
+
+    # Determine starting grid position per driver.
+    # Prefer the /starting_grid endpoint; fall back to the earliest /position record.
+    grid_pos: dict[int, int] = {}
+    for rec in grid:
+        dn = rec.get("driver_number")
+        gp = rec.get("position")
+        if dn is not None and gp is not None:
+            grid_pos[dn] = gp
+    if not grid_pos:
+        earliest: dict[int, dict] = {}
+        for rec in positions:
+            dn = rec.get("driver_number")
+            if dn and (dn not in earliest or rec.get("date", "") < earliest[dn].get("date", "")):
+                earliest[dn] = rec
+        for dn, rec in earliest.items():
+            gp = rec.get("position")
+            if gp is not None:
+                grid_pos[dn] = gp
 
     # Determine fastest lap holder
     fastest_lap_driver = None
@@ -167,21 +221,36 @@ async def build_live_snapshot(session_key: int, session_type: str) -> dict:
     lap_numbers = [lap.get("lap_number", 0) for lap in laps]
     current_lap = max(lap_numbers) if lap_numbers else 0
 
+    # Resolve total laps: explicit arg → max observed lap → 0
+    if total_laps is None:
+        total_laps = max(lap_numbers) if lap_numbers else 0
+
     driver_snapshots = []
     for driver_number, pos_rec in sorted(latest_pos.items(), key=lambda x: x[1].get("position", 99)):
         meta = driver_map.get(driver_number, {})
         position = pos_rec.get("position")
         is_fastest = driver_number == fastest_lap_driver
 
+        # positions_gained = grid - current (positive = gained). overtakes proxied as
+        # net positions gained (OpenF1 has no overtake feed). Driver of the Day is not
+        # exposed by OpenF1, so it stays False.
+        start = grid_pos.get(driver_number)
+        if start is not None and position is not None:
+            positions_gained = start - position
+        else:
+            positions_gained = 0
+        overtakes = max(0, positions_gained)
+        driver_of_day = False  # not available from OpenF1
+
         if session_type == "race":
             pos_pts = race_position_points(position)
-            bonus = race_bonus_points(0, 0, is_fastest)
+            bonus = race_bonus_points(positions_gained, overtakes, is_fastest, driver_of_day)
         elif session_type == "qualifying":
             pos_pts = qualifying_position_points(position)
-            bonus = 0
+            bonus = 0  # qualifying has no live position/overtake bonus
         else:  # sprint
             pos_pts = sprint_position_points(position)
-            bonus = 0
+            bonus = sprint_bonus_points(positions_gained, overtakes)
 
         total_pts = pos_pts + bonus
         driver_snapshots.append({
@@ -189,22 +258,38 @@ async def build_live_snapshot(session_key: int, session_type: str) -> dict:
             "driver_id": meta.get("name_acronym", str(driver_number)),
             "name": meta.get("broadcast_name", f"Driver {driver_number}"),
             "position": position,
+            "team_name": meta.get("team_name"),
             "fantasy_points": total_pts,
             "breakdown": {
                 "race_position_points": pos_pts,
-                "positions_gained": 0,
-                "overtakes": 0,
+                "positions_gained": positions_gained,
+                "overtakes": overtakes,
                 "fastest_lap": is_fastest,
                 "drs_boost_applied": False,
             },
         })
 
+    # Group drivers by constructor (team_name) and sum their fantasy points.
+    constructor_map: dict[str, dict] = {}
+    for ds in driver_snapshots:
+        team = ds.get("team_name")
+        if not team:
+            continue
+        entry = constructor_map.setdefault(
+            team, {"constructor": team, "fantasy_points": 0, "drivers": []}
+        )
+        entry["fantasy_points"] += ds["fantasy_points"]
+        entry["drivers"].append(ds["driver_id"])
+    constructors = sorted(
+        constructor_map.values(), key=lambda c: c["fantasy_points"], reverse=True
+    )
+
     return {
         "session_type": session_type,
         "lap": current_lap,
-        "total_laps": 57,  # default; actual from race data
+        "total_laps": total_laps,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "stale": False,
+        "stale": _any_served_from_cache(),
         "drivers": driver_snapshots,
-        "constructors": [],
+        "constructors": constructors,
     }

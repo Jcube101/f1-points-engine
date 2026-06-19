@@ -100,7 +100,7 @@ export default function TeamBuilder() {
               <button
                 key={mode}
                 onClick={() => setOptimizeMode(mode)}
-                className={`min-h-[36px] px-3 py-1 rounded font-medium transition-colors ${
+                className={`min-h-[44px] px-3 py-1 rounded font-medium transition-colors ${
                   optimizeMode === mode ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -109,7 +109,7 @@ export default function TeamBuilder() {
             ))}
             <button
               onClick={handleLoadOptimized}
-              className="sm:hidden min-h-[36px] px-3 py-1 rounded bg-green-700 text-white text-xs font-medium"
+              className="sm:hidden min-h-[44px] px-3 py-1 rounded bg-green-700 text-white text-xs font-medium"
             >
               Load Team
             </button>
@@ -211,7 +211,7 @@ export default function TeamBuilder() {
 
           {/* Differentials toggle (drivers tab only) */}
           {activeTab === 'drivers' && (
-            <label className="flex items-center gap-2 text-sm cursor-pointer min-h-[36px]">
+            <label className="flex items-center gap-2 text-sm cursor-pointer min-h-[44px]">
               <input
                 type="checkbox"
                 checked={showDifferentialsOnly}
@@ -315,7 +315,7 @@ export default function TeamBuilder() {
                 <button
                   key={d.id}
                   onClick={() => team.setDrsBoost(d.id)}
-                  className={`flex-shrink-0 min-h-[36px] px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
+                  className={`flex-shrink-0 min-h-[44px] px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
                     team.drsBoostDriverId === d.id
                       ? 'border-yellow-500 bg-yellow-500/20 text-yellow-300'
                       : 'border-gray-600 bg-gray-800 text-gray-300'

@@ -84,6 +84,11 @@ class RaceResult(Base):
     q2_reached = Column(Boolean, default=False)
     q3_reached = Column(Boolean, default=False)
 
+    # Provenance of this row: "jolpica" (fetched real results), "openf1", or
+    # "generated" (deterministic placeholder — flags rows that need replacing
+    # with real data when it becomes available).
+    data_source = Column(String, default="generated")
+
     race = relationship("Race", back_populates="results")
     driver = relationship("Driver", back_populates="race_results")
     constructor = relationship("Constructor", back_populates="race_results")

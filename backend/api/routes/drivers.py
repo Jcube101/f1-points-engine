@@ -209,7 +209,7 @@ async def get_circuit_fit(
     max_avg = max((p.avg_points for p in profiles), default=1) or 1
     result = []
     for p in profiles:
-        drv = db.query(Driver).get(p.driver_id)
+        drv = db.get(Driver, p.driver_id)
         if not drv or drv.price <= 0:
             continue
         result.append({
@@ -233,7 +233,7 @@ async def get_driver_form(driver_id: int, db: Session = Depends(get_db)):
     each race. Returns per-race sparkline data plus an overall flag:
     'overperforming', 'underperforming', or 'on_form'.
     """
-    driver = db.query(Driver).get(driver_id)
+    driver = db.get(Driver, driver_id)
     if not driver:
         return {"success": False, "error": "Driver not found", "data": None}
 
@@ -290,7 +290,7 @@ async def get_vs_teammate(driver_id: int, db: Session = Depends(get_db)):
     Return 2025 head-to-head comparison between a driver and their current
     constructor teammate (qualifying wins, avg race position, fantasy pts).
     """
-    driver = db.query(Driver).get(driver_id)
+    driver = db.get(Driver, driver_id)
     if not driver:
         return {"success": False, "error": "Driver not found", "data": None}
 
@@ -310,7 +310,7 @@ async def get_vs_teammate(driver_id: int, db: Session = Depends(get_db)):
 @router.get("/{driver_id}")
 async def get_driver(driver_id: int, db: Session = Depends(get_db)):
     """Return a single driver by ID with recent fantasy history."""
-    driver = db.query(Driver).get(driver_id)
+    driver = db.get(Driver, driver_id)
     if not driver:
         return {"success": False, "error": "Driver not found", "data": None}
 
