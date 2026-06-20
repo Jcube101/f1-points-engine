@@ -364,6 +364,57 @@ build.sh:
 
 ---
 
+## Post-race sync
+
+After each race weekend the database needs the new round's results. On the
+production Raspberry Pi this is automated with a **systemd timer** that runs a
+standalone sync script — it ingests any newly completed rounds from Jolpica,
+scores them through the same engine as the seed, recomputes xP + circuit
+profiles, and records a `SyncLog` row.
+
+The live race poller (`live_poller.py`, APScheduler, 30s during sessions) is
+unrelated and stays as-is — only this scheduled post-race maintenance uses systemd.
+
+### How it works
+- `backend/scripts/sync_results.py` — standalone (does **not** import FastAPI).
+  Detects completed rounds from Jolpica's standings, skips rounds already stored
+  with `data_source` in (`jolpica`, `real`), fetches + scores only the new ones,
+  then rebuilds xP and `DriverCircuitProfile`. Exits `0` on success, `1` on failure.
+- `systemd/f1-sync.timer` — fires **Monday 00:30 UTC (06:00 IST)**. `Persistent=true`
+  means a sync missed while the Pi was off runs as soon as it boots.
+- `GET /api/sync/status` — reports `last_sync`, `last_round_synced`, `rounds_in_db`,
+  `next_round`/`next_round_name`/`next_round_date`, and `status`
+  (`up_to_date` | `behind` | `no_data`).
+
+### Install on the Pi
+```bash
+sudo cp systemd/f1-sync.service /etc/systemd/system/
+sudo cp systemd/f1-sync.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now f1-sync.timer
+systemctl list-timers f1-sync.timer
+```
+
+### Operate
+```bash
+# Trigger a manual sync now
+.venv/bin/python backend/scripts/sync_results.py
+
+# Preview what would change without writing to the DB
+.venv/bin/python backend/scripts/sync_results.py --dry-run
+
+# Run the systemd job immediately (instead of waiting for Monday)
+sudo systemctl start f1-sync.service
+
+# Check sync logs
+journalctl -u f1-sync -n 50
+```
+
+> Note: the script uses the project venv at `.venv`. If you run it by hand,
+> either call `.venv/bin/python …` (as above) or activate the venv first.
+
+---
+
 ## Roadmap
 
 See [ROADMAP.MD](ROADMAP.MD) for the full phased plan.

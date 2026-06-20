@@ -87,7 +87,10 @@ backend/core/config.py           ← CURRENT_SEASON, scoring tables, budget cap
 backend/data/openf1_client.py    ← OpenF1 API wrapper (live race data)
 backend/data/ergast_client.py    ← Ergast/Jolpica API wrapper (historical + calendar)
 backend/data/fantasy_validator.py ← Cross-check scores vs official F1 Fantasy API
-backend/scheduler/live_poller.py  ← Polls OpenF1 every 30s during race sessions
+backend/scheduler/live_poller.py  ← Polls OpenF1 every 30s during race sessions (APScheduler)
+backend/scripts/sync_results.py  ← Standalone post-race sync (systemd timer, NOT FastAPI):
+                                    ingests new completed rounds from Jolpica, scores via
+                                    seed.store_2026_round, recomputes xP + circuit profiles
 backend/seed.py                  ← One-time DB seeding: 2026 drivers/constructors,
                                     2025+2026 calendars, 2025 results (generated) + real 2026
                                     results for completed rounds (fetched from Jolpica),
@@ -305,6 +308,21 @@ curl -X POST http://localhost:8000/api/validation/run
 ```bash
 cd backend && pytest
 ```
+
+**Sync new race results (post-race)**
+```bash
+# Ingest any newly completed rounds from Jolpica into the app DB, recompute xP +
+# circuit profiles. Standalone — does NOT start FastAPI. Exit 0 ok / 1 on failure.
+.venv/bin/python backend/scripts/sync_results.py
+.venv/bin/python backend/scripts/sync_results.py --dry-run   # preview, no writes
+```
+On the Pi this runs automatically via the `f1-sync` systemd timer (Monday 06:00 IST).
+See the README "Post-race sync" section for install + `journalctl -u f1-sync` logs.
+Sync status is exposed at `GET /api/sync/status`.
+
+> **Scheduling note:** APScheduler is used **only** by `live_poller.py` for the
+> 30-second OpenF1 poll during live sessions. Scheduled maintenance (the post-race
+> result sync) runs as a **systemd timer**, not via APScheduler.
 
 ---
 

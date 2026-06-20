@@ -1,0 +1,11 @@
+[Unit]
+Description=F1 Points Engine — weekly post-race sync (Monday 06:00 IST)
+Requires=f1-sync.service
+
+[Timer]
+OnCalendar=Mon *-*-* 00:30:00 UTC
+Persistent=true
+Unit=f1-sync.service
+
+[Install]
+WantedBy=timers.target

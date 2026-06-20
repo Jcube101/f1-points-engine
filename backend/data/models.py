@@ -139,3 +139,14 @@ class ScoreValidation(Base):
 
     race = relationship("Race", back_populates="score_validations")
     driver = relationship("Driver", back_populates="score_validations")
+
+
+class SyncLog(Base):
+    """Record of each post-race result sync run (driven by the systemd timer)."""
+
+    __tablename__ = "sync_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+    rounds_synced = Column(Integer, default=0)  # how many new rounds were ingested
+    success = Column(Boolean, default=True)
