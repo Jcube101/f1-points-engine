@@ -464,4 +464,45 @@ for (const [code, score] of Object.entries(race.driver_fits)) {
 
 ---
 
-*LEARNINGS.MD version: 1.1 | Entries: 30 | Last updated: June 2026*
+### L-031 · Jolpica caps the page size — the season-wide `/results` endpoint silently drops later rounds
+
+**Context:** The post-race sync (`backend/scripts/sync_results.py`) first asked Jolpica which rounds were completed via the season-wide `/2026/results` endpoint (with `limit=1000`).
+
+**Problem:** Jolpica enforces a maximum page size of ~100 result rows regardless of the requested `limit`. With ~22 rows per round, a single page only covers ~4–5 rounds. The dry-run reported `Completed rounds: [1,2,3,4,5]` even though rounds 6 and 7 had finished — so the sync would have **silently never ingested the latest rounds**.
+
+**Fix:** Don't infer completion from the paginated `/results` feed. Use the `driverStandings` endpoint instead — its `MRData.StandingsTable.round` is a single authoritative number = the latest scored round. Added `ergast_client.get_latest_completed_round(season)`; the sync treats rounds `1..latest` as completed.
+
+```python
+data = await _get(f"/{season}/driverStandings")
+latest = int(data["MRData"]["StandingsTable"]["round"])  # e.g. 7
+```
+
+**Lesson:** Paginated list endpoints are a silent-data-loss trap for "what's the latest?" questions. Prefer a summary/aggregate endpoint that returns the answer directly.
+
+---
+
+### L-032 · Pytest: importing `conftest`'s `TestingSessionLocal` directly gives a *different* DB instance
+
+**Context:** A new test imported the shared session maker with `from backend.tests.conftest import TestingSessionLocal` and queried the seeded data directly (not via the FastAPI `client` fixture).
+
+**Problem:** Every query returned an empty DB even though the autouse `seed_test_db` fixture had run. pytest loads `conftest.py` as a **plugin** (one module instance, with its own in-memory engine + StaticPool), while `import backend.tests.conftest` loads a **second** module instance with a *different* engine. The seed populates instance A; the direct import reads instance B → empty. API tests passed because they go through the plugin instance via `app.dependency_overrides`.
+
+**Fix:** Don't reach into conftest's internals from a test. Make DB-touching tests self-contained — build a local in-memory engine + `Base.metadata.create_all` + a tiny seed inside the test module (see `test_fantasy_validator.py`, `test_sync.py`).
+
+**Relation to L-008/L-021:** StaticPool only shares a connection *within one engine instance*. Two engine instances never share data, regardless of StaticPool.
+
+---
+
+### L-033 · `venv` vs `.venv` — the Pi uses `.venv`; don't hard-code the wrong one
+
+**Context:** Writing the `f1-sync.service` unit, whose `ExecStart` must point at the project interpreter.
+
+**Problem:** Earlier audit work referenced the venv as `venv/`, but the production Pi's venv is `.venv/` (the deployed `f1-points-engine.service` runs `/home/jcube/projects/f1-points-engine/.venv/bin/uvicorn`). A unit hard-coding `venv/bin/python` would fail with "no such file" and the timer would silently never sync.
+
+**Fix:** Confirm the real path before writing any unit/cron/script that hard-codes an interpreter: `ls -d .venv venv` and check the deployed service's `ExecStart`. The sync units use `.venv/bin/python`, matching production.
+
+**Lesson:** Interpreter paths are environment facts to *verify*, not assume — a wrong path fails silently in a scheduled (non-interactive) job where no one sees the error until results go stale.
+
+---
+
+*LEARNINGS.MD version: 1.2 | Entries: 33 | Last updated: June 2026*

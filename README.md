@@ -31,9 +31,9 @@ F1 Points Engine is an open-source fantasy F1 tool that helps you win your fanta
 
 | Feature | What it does |
 |---|---|
-| **Race Calendar Fix** | 2026 calendar corrected to local venue race-day dates (23 rounds, no Emilia Romagna). Sprint weekends re-tagged: Miami, Canada, Britain, Netherlands, Singapore. `seed_races()` now updates existing rows, not just inserts |
-| **Title Race — Live Standings** | Championship Standings section with WDC points bar chart (top 10, team-coloured). Auto-updates via OpenF1 API |
-| **Title Race — Monte Carlo Simulator** | `POST /api/simulator/title-odds` runs 10,000 simulations of remaining season using each driver's last 5 race results weighted by recency (50/30/20%). Results cached 1 hour. Frontend shows horizontal win-probability bars + plain-English scenario summary |
+| **Race Calendar Fix** | 2026 calendar is 22 rounds (Bahrain + Saudi removed). Madrid GP (Round 14, "Spanish GP" at Madring, street) is a separate race from Barcelona (Round 7). Sprints: China, Miami, Canada, Britain, Netherlands, Singapore. `seed_races()` updates existing rows, not just inserts |
+| **Title Race — Live Standings** | Championship Standings section with WDC points bar chart (top 10, team-coloured). WDC points fetched from Jolpica |
+| **Title Race — Monte Carlo Simulator** | `POST /api/simulator/title-odds` runs 10,000 simulations of the remaining season using each driver's last 5 race results weighted by recency (50/30/20%), with the **real 2026 WDC points** as the championship baseline (after 7 rounds Antonelli is ~76.7% title favourite). Results cached 1 hour. Frontend shows horizontal win-probability bars + plain-English scenario summary |
 | **Pace Sliders** | Interactive 0.5×–1.5× pace multipliers for top 5 drivers. Debounced (350ms) re-simulation for instant "what-if" exploration |
 | **Help Page** | Accordion FAQ with 6 sections: Getting Started, Scoring Rules, Chips & Strategy, Team Optimizer, Intelligence Features, Title Race Calculator. Smooth CSS transitions, mobile-friendly |
 
@@ -79,8 +79,8 @@ Open **http://localhost:5173** — the seed script runs automatically on first b
 pip install -r backend/requirements.txt
 
 # 2. Seed the database
-#    Populates all 2026 drivers/constructors, 2025+2026 calendars,
-#    2025 race results, xP scores, and circuit profiles
+#    Populates all 2026 drivers/constructors, 2025+2026 calendars, 2025 generated
+#    results + real 2026 results (rounds 1–7 from Jolpica), xP scores, circuit profiles
 python backend/seed.py
 
 # 3. Start the API server
@@ -154,6 +154,7 @@ Weights: 50% most recent, 30% previous, 20% oldest. Circuit types: `street` / `p
 | GET | `/api/standings/value?season=` | Fantasy value leaderboard |
 | GET | `/api/standings/progression?season=` | Cumulative fantasy points per driver per round |
 | GET | `/api/validation/latest` | Our scores vs official F1 Fantasy API |
+| GET | `/api/sync/status` | Post-race sync status: `last_sync`, `last_round_synced`, `rounds_in_db`, `next_round`, `status` (`up_to_date`/`behind`/`no_data`) |
 | WS | `/ws/live` | Real-time race fantasy point updates (every 30s) |
 
 ### Phase 2 — Intelligence Layer
@@ -187,20 +188,21 @@ Tables created automatically by SQLAlchemy `create_all()` on startup:
 |---|---|
 | `constructors` | 11 teams (2026 grid, including Cadillac and Audi) |
 | `drivers` | 24 drivers (22 active + TSU + DOO retained for 2025 history, `price=0`) |
-| `races` | 45 races (24 rounds 2025 + 21 rounds 2026) |
-| `race_results` | Qualifying pos, race pos, sprint pos, DNF/DSQ/fastest lap per driver per race |
+| `races` | 46 races (24 rounds 2025 + 22 rounds 2026) |
+| `race_results` | Qualifying pos, race pos, sprint pos, DNF/DSQ/fastest lap per driver per race; `data_source` flags each row (`jolpica` / `real` / `generated`) |
 | `fantasy_points` | Computed fantasy point totals per driver per race |
-| `driver_circuit_profiles` | Per-driver average pts by circuit type (street / power / balanced) — 60 rows |
+| `driver_circuit_profiles` | Per-driver average pts by circuit type (street / power / balanced) — 72 rows |
 | `score_validations` | Our computed scores vs official F1 Fantasy API |
+| `sync_logs` | One row per post-race sync run (`synced_at`, `rounds_synced`, `success`) |
 
 Seed counts after `python backend/seed.py`:
 ```
 constructors:           11
 drivers:                24   (22 active + 2 retired/2025-only)
-races:                  45   (24 in 2025 + 21 in 2026)
-race_results:          480
-fantasy_points:        480
-driver_circuit_profiles: 60
+races:                  46   (24 in 2025 + 22 in 2026)
+race_results:          634   (480 generated 2025 + 154 real jolpica 2026 R1–7)
+fantasy_points:        634
+driver_circuit_profiles: 72
 ```
 
 ---
@@ -234,22 +236,30 @@ f1-points-engine/
 │   │   ├── chips.py               # /api/chips/recommend
 │   │   ├── points.py              # /api/points/calculate + leaderboard
 │   │   ├── simulator.py           # /api/simulator/title-odds (Phase 3)
-│   │   └── validation.py          # /api/validation
+│   │   ├── validation.py          # /api/validation
+│   │   └── sync.py                # /api/sync/status (post-race sync state)
 │   ├── db/
 │   │   └── database.py            # SQLAlchemy engine + session + init_db()
 │   ├── scheduler/
-│   │   └── live_poller.py         # APScheduler: polls OpenF1 every 30s
-│   └── tests/                     # Pytest test suite (175 tests)
+│   │   └── live_poller.py         # APScheduler: polls OpenF1 every 30s (live only)
+│   ├── scripts/
+│   │   └── sync_results.py        # Standalone post-race sync (systemd timer, not FastAPI)
+│   └── tests/                     # Pytest test suite (204 tests)
 │       ├── conftest.py            # In-memory test DB + seeded fixtures
-│       ├── test_scoring.py        # Unit tests — scoring.py (44 tests)
-│       ├── test_expected_points.py # Unit tests — expected_points.py (22 tests)
+│       ├── test_scoring.py        # Unit tests — scoring.py (60 tests)
+│       ├── test_expected_points.py # Unit tests — expected_points.py (28 tests)
 │       ├── test_api_drivers.py    # Integration tests — driver endpoints
 │       ├── test_api_constructors.py
 │       ├── test_api_races.py
 │       ├── test_api_standings.py
 │       ├── test_api_team.py
 │       ├── test_api_chips.py
-│       └── test_api_transfers.py
+│       ├── test_api_transfers.py
+│       ├── test_api_points.py     # /api/points/calculate
+│       ├── test_api_simulator.py  # /api/simulator/title-odds (WDC baseline mocked)
+│       ├── test_openf1_client.py  # build_live_snapshot (OpenF1 mocked)
+│       ├── test_fantasy_validator.py # score validation flow
+│       └── test_sync.py           # post-race sync (Jolpica mocked)
 ├── frontend/
 │   └── src/
 │       ├── pages/
@@ -274,8 +284,9 @@ f1-points-engine/
 │       └── lib/
 │           ├── types.ts           # All shared TypeScript interfaces
 │           └── api.ts             # All backend API calls
+├── systemd/                       # f1-sync.service + f1-sync.timer (post-race sync)
 ├── TEST_PLAN.MD                   # 9-step validation guide
-├── LEARNINGS.MD                   # 26 development learnings
+├── LEARNINGS.MD                   # 33 development learnings
 ├── ROADMAP.MD                     # Phased feature roadmap
 ├── SPEC.MD                        # Full project specification
 ├── CLAUDE.MD                      # Claude Code context file
@@ -300,7 +311,7 @@ python -m pytest backend/tests/ -v
 python -m pytest backend/tests/test_scoring.py -v
 ```
 
-**175 tests, 0 failures.** See [TEST_PLAN.MD](TEST_PLAN.MD) for the complete validation guide including manual smoke tests and a data integrity checklist.
+**204 tests, 0 failures.** See [TEST_PLAN.MD](TEST_PLAN.MD) for the complete validation guide including manual smoke tests and a data integrity checklist.
 
 ---
 
@@ -421,7 +432,8 @@ See [ROADMAP.MD](ROADMAP.MD) for the full phased plan.
 
 - **Phase 1** ✅ — Team optimizer, live race tracker, chip advisor, standings, score validator, xP engine
 - **Phase 2** ✅ — Circuit intelligence, differential finder, form vs luck detector, teammate comparison, transfer planner
-- **Phase 3** ✅ — Calendar date fixes, Monte Carlo title odds simulator with pace sliders, Help FAQ page
+- **Phase 3** ✅ — Calendar fixes, Monte Carlo title odds simulator (real WDC baseline) with pace sliders, Help FAQ page
+- **Phase 4** 🔮 — Future: ML chip advisor, multi-user leagues, price prediction model, mobile PWA
 
 ---
 

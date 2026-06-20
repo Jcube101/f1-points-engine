@@ -44,6 +44,7 @@
 - Docker + docker-compose for local dev
 - Production: self-hosted on a Raspberry Pi 5 (8GB) — FastAPI on port 8011 behind a Cloudflare Tunnel at https://f1.job-joseph.com, always-on with no cold starts
 - README also documents deployment to Railway, Render, and Fly.io as managed-platform alternatives
+- Scheduled maintenance uses a **systemd timer** (`f1-sync.service` + `f1-sync.timer`, Monday 00:30 UTC / 06:00 IST, `Persistent=true`) that runs `backend/scripts/sync_results.py` to ingest new race results post-weekend. APScheduler is reserved for the in-process live race poller (30s during sessions) only — not for scheduled maintenance.
 
 ### Data Sources
 - **Primary race data**: OpenF1 API (https://openf1.org) — free, no auth, real-time lap data
@@ -359,8 +360,10 @@ ScoreValidation: id, race_id, driver_id, our_score, official_score, delta, valid
 | GET | /api/standings/wcc | Constructor championship standings |
 | GET | /api/standings/progression | Cumulative fantasy pts per driver per round (DB-sourced, all 24 rounds) |
 | GET | /api/standings/value | Fantasy value leaderboard (xP per $M) |
+| POST | /api/simulator/title-odds | Monte Carlo title-odds simulation (real WDC baseline) |
 | GET | /api/validation/latest | Our score vs official score diff |
 | GET | /api/live/status | Is a session currently live? |
+| GET | /api/sync/status | Post-race sync status (last_sync, rounds_in_db, next_round, status) |
 | WS | /ws/live | WebSocket: live race point updates |
 
 All responses: `{ success: bool, data: any, error?: string }`
