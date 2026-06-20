@@ -104,7 +104,7 @@ export default function DriverCard({ driver, selected, onSelect, showXP = true }
       {/* Expand sparkline button */}
       <button
         onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v) }}
-        className="w-full border-t border-gray-700/50 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors min-h-[32px] flex items-center justify-center gap-1"
+        className="w-full border-t border-gray-700/50 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors min-h-[44px] flex items-center justify-center gap-1"
       >
         {expanded ? '▲ Hide trend' : '▼ Show form trend'}
       </button>

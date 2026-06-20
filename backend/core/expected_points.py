@@ -35,10 +35,13 @@ DEFAULT_CIRCUIT_MULTIPLIERS: dict[str, dict[str, float]] = {
     "TSU": {"street": 1.05, "power": 1.0, "balanced": 1.0},
     "LAW": {"street": 1.0, "power": 1.0, "balanced": 1.0},
     "ALB": {"street": 1.0, "power": 1.0, "balanced": 1.0},
-    "SAR": {"street": 1.0, "power": 1.0, "balanced": 1.0},
     "BEA": {"street": 1.0, "power": 1.0, "balanced": 1.0},
     "DOO": {"street": 1.0, "power": 1.0, "balanced": 1.0},
     "HAD": {"street": 1.0, "power": 1.0, "balanced": 1.0},
+    "COL": {"street": 1.0, "power": 1.0, "balanced": 1.0},
+    "PER": {"street": 1.0, "power": 1.0, "balanced": 1.0},
+    "BOT": {"street": 1.0, "power": 1.0, "balanced": 1.0},
+    "LIN": {"street": 1.0, "power": 1.0, "balanced": 1.0},
 }
 
 
@@ -51,8 +54,9 @@ def weighted_average(points: list[float]) -> float:
                 Can have 0–3 entries; fewer races = lower confidence.
 
     Returns:
-        Weighted average. Weights: [oldest=0.2, middle=0.3, most_recent=0.5].
-        If fewer than 3 races, weights are redistributed proportionally.
+        Weighted average using fixed weights per number of races:
+        1 race = 100% (most recent); 2 races = 40% oldest / 60% newest;
+        3 races = [oldest=0.2, middle=0.3, most_recent=0.5].
     """
     weights = [0.2, 0.3, 0.5]
 
@@ -95,7 +99,7 @@ def teammate_gap_factor(
         teammate_quali_positions: List of teammate's qualifying positions over same races.
 
     Returns:
-        Float factor. 1.0 = neutral, up to 1.05 = 5% boost, down to 0.97 = 3% penalty.
+        Float factor. 1.0 = neutral, up to +5% boost (1.05), down to -3% penalty (0.97).
         Only applies to qualifying xP, not race xP.
     """
     if not driver_quali_positions or not teammate_quali_positions:
@@ -106,7 +110,7 @@ def teammate_gap_factor(
     teammate_avg = sum(teammate_quali_positions[:n]) / n
 
     gap = teammate_avg - driver_avg  # positive means driver qualifies better (lower pos)
-    # Cap the boost at ±5%
+    # Cap at up to +5% boost, down to -3% penalty
     factor = 1.0 + min(0.05, max(-0.03, gap * 0.01))
     return round(factor, 4)
 

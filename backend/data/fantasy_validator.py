@@ -132,7 +132,7 @@ async def run_validation(db: Session, race: Race) -> dict:
     max_delta = 0.0
 
     for fp in fantasy_rows:
-        driver = db.query(Driver).get(fp.driver_id)
+        driver = db.get(Driver, fp.driver_id)
         if not driver:
             continue
         official_score = official.get(driver.code)

@@ -78,15 +78,17 @@ Turns good fantasy players into great ones. FPL-inspired analytical depth.
 
 ---
 
-## Phase 3: Championship Simulator 🔮 *The non-fantasy hook*
+## Phase 3: Championship Simulator 🚧 *The non-fantasy hook — Title Odds shipped*
 
 Makes the tool useful for every F1 fan, not just fantasy players. This is the distribution and marketing engine.
 
-**Interactive Title Odds Calculator**
-- Select your favourite driver
-- See their current championship win probability (computed via Monte Carlo simulation)
-- Simulation runs remaining races thousands of times, weighted by each driver's historical finish distribution
-- Updates live after every race
+**Interactive Title Odds Calculator** ✅
+- `POST /api/simulator/title-odds` + `/title-race` page
+- Current championship win probability via Monte Carlo simulation (10,000 runs)
+- Simulation runs the remaining races thousands of times, weighted by each driver's recent finish distribution
+- Championship baseline = **real WDC points** fetched from Jolpica (not fantasy totals)
+- Pace-multiplier sliders (0.5×–1.5×) for interactive "what-if" pace scenarios
+- Updates after every race as new results are seeded
 
 **Scenario Builder**
 - Drag-and-drop finishing positions for upcoming races

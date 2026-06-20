@@ -46,14 +46,14 @@ async def get_races(
 @router.get("/{race_id}/results")
 async def get_race_results(race_id: int, db: Session = Depends(get_db)):
     """Return all results for a specific race."""
-    race = db.query(Race).get(race_id)
+    race = db.get(Race, race_id)
     if not race:
         return {"success": False, "error": "Race not found", "data": None}
 
     results = db.query(RaceResult).filter_by(race_id=race_id).all()
     data = []
     for r in results:
-        driver = db.query(Driver).get(r.driver_id)
+        driver = db.get(Driver, r.driver_id)
         data.append({
             "driver_id": r.driver_id,
             "driver_name": driver.name if driver else "",

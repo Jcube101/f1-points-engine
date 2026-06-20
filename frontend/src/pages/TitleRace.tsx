@@ -233,7 +233,7 @@ export default function TitleRace() {
                 {top5codes.map((code) => {
                   const val = paceMultipliers[code] ?? 1.0
                   return (
-                    <div key={code} className="flex items-center gap-3">
+                    <div key={code} className="flex items-center gap-3 min-h-[44px]">
                       <span
                         className="font-mono text-sm font-bold w-10"
                         style={{ color: TEAM_COLORS[code] ?? '#9ca3af' }}
@@ -247,7 +247,7 @@ export default function TitleRace() {
                         step={0.05}
                         value={val}
                         onChange={(e) => handleSlider(code, parseFloat(e.target.value))}
-                        className="flex-1 accent-red-500"
+                        className="flex-1 accent-red-500 min-h-[44px]"
                       />
                       <span className="text-gray-400 text-xs w-10 text-right">{val.toFixed(2)}×</span>
                     </div>
@@ -258,7 +258,7 @@ export default function TitleRace() {
                     setPaceMultipliers({})
                     runWithPace({})
                   }}
-                  className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                  className="min-h-[44px] px-3 inline-flex items-center text-xs text-gray-500 hover:text-gray-300 transition-colors"
                 >
                   Reset sliders
                 </button>

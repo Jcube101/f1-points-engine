@@ -45,7 +45,8 @@ class ConnectionManager:
         logger.info("WebSocket client connected. Total: %d", len(self.active_connections))
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
         logger.info("WebSocket client disconnected. Total: %d", len(self.active_connections))
 
     async def broadcast(self, data: Any):
@@ -58,7 +59,8 @@ class ConnectionManager:
             except Exception:
                 dead.append(ws)
         for ws in dead:
-            self.active_connections.remove(ws)
+            if ws in self.active_connections:
+                self.active_connections.remove(ws)
 
 
 manager = ConnectionManager()

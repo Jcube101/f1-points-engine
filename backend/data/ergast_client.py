@@ -15,22 +15,21 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# Use Jolpica F1 mirror (same API format as Ergast, actively maintained)
-ERGAST_BASE = "https://ergast.com/api/f1"
+# Use the Jolpica F1 mirror (same API format as Ergast, actively maintained).
+# The original ergast.com API was retired in 2024, so there is no live fallback.
 JOLPICA_BASE = "https://api.jolpi.ca/ergast/f1"
 
 
 async def _get(path: str, params: dict | None = None) -> Optional[dict]:
-    """Make an async GET request to the Ergast-compatible API."""
-    for base in (JOLPICA_BASE, ERGAST_BASE):
-        url = f"{base}{path}.json"
-        try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(url, params={**(params or {}), "limit": 1000})
-                resp.raise_for_status()
-                return resp.json()
-        except Exception as exc:
-            logger.warning("Ergast API failed (%s): %s", url, exc)
+    """Make an async GET request to the Jolpica (Ergast-compatible) API."""
+    url = f"{JOLPICA_BASE}{path}.json"
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(url, params={**(params or {}), "limit": 1000})
+            resp.raise_for_status()
+            return resp.json()
+    except Exception as exc:
+        logger.warning("Jolpica API failed (%s): %s", url, exc)
     return None
 
 
@@ -129,6 +128,27 @@ async def get_qualifying_results(season: int | str, round_num: int | str) -> lis
     try:
         races = data["MRData"]["RaceTable"]["Races"]
         return races[0]["QualifyingResults"] if races else []
+    except (KeyError, TypeError, IndexError):
+        return []
+
+
+async def get_sprint_results(season: int | str, round_num: int | str) -> list[dict]:
+    """
+    Fetch sprint race results for a specific round (sprint weekends only).
+
+    Args:
+        season: Year.
+        round_num: Round number.
+
+    Returns:
+        List of sprint result dicts (empty if the round had no sprint).
+    """
+    data = await _get(f"/{season}/{round_num}/sprint")
+    if not data:
+        return []
+    try:
+        races = data["MRData"]["RaceTable"]["Races"]
+        return races[0]["SprintResults"] if races else []
     except (KeyError, TypeError, IndexError):
         return []
 

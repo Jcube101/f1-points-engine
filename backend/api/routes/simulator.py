@@ -13,6 +13,7 @@ import time
 import logging
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -23,6 +24,37 @@ from backend.core.config import CURRENT_SEASON
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/simulator", tags=["simulator"])
+
+
+def _fetch_wdc_points(season: int) -> dict[str, float]:
+    """
+    Fetch real WDC championship points for a season from the Jolpica (Ergast) API.
+
+    Args:
+        season: Championship season year (e.g. 2026).
+
+    Returns:
+        Dict mapping driver CODE (e.g. "VER") -> championship points as float.
+        Returns {} on any failure (network error, missing data, parse error) —
+        logs a warning and never raises.
+    """
+    url = f"https://api.jolpi.ca/ergast/f1/{season}/driverstandings.json"
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url)
+            resp.raise_for_status()
+            payload = resp.json()
+        standings = (
+            payload["MRData"]["StandingsTable"]["StandingsLists"][0]["DriverStandings"]
+        )
+        points: dict[str, float] = {}
+        for entry in standings:
+            code = entry["Driver"]["code"]
+            points[code] = float(entry["points"])
+        return points
+    except Exception as exc:  # noqa: BLE001 — never crash the simulator
+        logger.warning("Failed to fetch WDC points for %s: %s", season, exc)
+        return {}
 
 # In-memory cache: key → (timestamp, result)
 _cache: dict[str, tuple[float, dict]] = {}
@@ -158,12 +190,11 @@ def title_odds(req: TitleOddsRequest, db: Session = Depends(get_db)):
     driver_codes: dict[int, str] = {d.id: d.code for d in drivers_db}
     driver_names: dict[int, str] = {d.id: d.name for d in drivers_db}
 
-    # Fetch current championship standings approximation from FantasyPoints
-    # Sum all fantasy points per driver as proxy for championship points
-    current_pts: dict[int, float] = {}
-    for d in drivers_db:
-        total = sum(fp.total_pts for fp in d.fantasy_points)
-        current_pts[d.id] = total
+    # Real 2026 WDC championship points from Jolpica, keyed by driver code.
+    wdc_points = _fetch_wdc_points(req.season)
+    current_pts: dict[int, float] = {
+        d.id: float(wdc_points.get(d.code, 0.0)) for d in drivers_db
+    }
 
     # Count remaining 2026 races (date > today)
     from datetime import date

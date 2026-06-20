@@ -16,7 +16,7 @@ async def get_constructors(db: Session = Depends(get_db)):
     constructors = db.query(Constructor).all()
     result = []
     for c in constructors:
-        drivers = db.query(Driver).filter_by(team_id=c.id).all()
+        drivers = db.query(Driver).filter_by(team_id=c.id).filter(Driver.price > 0).all()
         result.append({
             "id": c.id,
             "name": c.name,
@@ -35,7 +35,7 @@ async def get_teammate_comparison(constructor_id: int, db: Session = Depends(get
     qualifying H2H record, average race position, average fantasy points,
     and average points per million. Used to power the Teammate Comparison modal.
     """
-    constructor = db.query(Constructor).get(constructor_id)
+    constructor = db.get(Constructor, constructor_id)
     if not constructor:
         return {"success": False, "error": "Constructor not found", "data": None}
 

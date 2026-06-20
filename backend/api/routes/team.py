@@ -19,7 +19,7 @@ class OptimizeRequest(BaseModel):
 
 def _build_assets(db: Session):
     """Build Asset objects for all drivers and constructors."""
-    drivers = db.query(Driver).all()
+    drivers = db.query(Driver).filter(Driver.price > 0).all()
     constructors = db.query(Constructor).all()
 
     driver_assets = []
