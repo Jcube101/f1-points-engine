@@ -797,6 +797,88 @@ async def _fetch_2026_round(round_num: int) -> list[dict]:
     return rows
 
 
+def store_2026_round(
+    db: Session,
+    race_id: int,
+    rows: list[dict],
+    driver_code_map: dict[str, int],
+    constructor_id_map: dict[str, int] | None = None,
+) -> int:
+    """Store one round's normalised result rows as RaceResult + FantasyPoints.
+
+    Shared by the initial seed (`seed_2026_results`) and the post-race sync
+    (`backend/scripts/sync_results.py`) so both use the exact same scoring
+    pipeline. Idempotent — skips a (race, driver) that already has a result.
+    Does NOT commit; the caller commits. Returns the number of FantasyPoints
+    rows inserted.
+    """
+    constructor_id_map = constructor_id_map or {}
+    inserted = 0
+    for res in rows:
+        driver_id = driver_code_map.get(res["code"])
+        if not driver_id:
+            continue
+        # 2026 results use the driver's current team. Prefer the API-supplied
+        # constructor; fall back to the driver's seeded team.
+        constructor_id = constructor_id_map.get(res.get("constructor_cid") or "")
+        if not constructor_id:
+            drv = db.get(Driver, driver_id)
+            constructor_id = drv.team_id if drv else None
+        if not constructor_id:
+            continue
+
+        if db.query(RaceResult).filter_by(race_id=race_id, driver_id=driver_id).first():
+            continue
+
+        db.add(RaceResult(
+            race_id=race_id,
+            driver_id=driver_id,
+            constructor_id=constructor_id,
+            qualifying_pos=res["quali_pos"],
+            race_pos=res["race_pos"],
+            sprint_pos=res["sprint_pos"],
+            grid_pos=res["grid"],
+            dnf=res["dnf"],
+            dsq=res["dsq"],
+            fastest_lap=res["fastest_lap"],
+            driver_of_day=False,  # not exposed by Ergast/Jolpica
+            positions_gained_quali=0,
+            positions_gained_race=res["positions_gained_race"],
+            overtakes=res["overtakes"],
+            q2_reached=res["q2_reached"],
+            q3_reached=res["q3_reached"],
+            data_source=res["data_source"],
+        ))
+        db.flush()
+
+        # Fantasy points via the scoring engine (same path as 2025 seeding).
+        q_pts = qualifying_position_points(res["quali_pos"], res["dsq"])
+        q_bonus = qualifying_bonus_points(0, 0)
+        r_pts = race_position_points(res["race_pos"], res["dnf"], res["dsq"])
+        r_bonus = race_bonus_points(
+            res["positions_gained_race"], res["overtakes"], res["fastest_lap"], False,
+        )
+        s_pts = 0.0
+        if res["sprint_pos"] is not None or res["sprint_dnf"]:
+            s_pts = float(sprint_position_points(res["sprint_pos"], res["sprint_dnf"]))
+            s_pts += float(sprint_bonus_points(0, 0))
+        total = q_pts + q_bonus + r_pts + r_bonus + s_pts
+
+        if not db.query(FantasyPoints).filter_by(race_id=race_id, driver_id=driver_id).first():
+            db.add(FantasyPoints(
+                race_id=race_id,
+                driver_id=driver_id,
+                qualifying_pts=float(q_pts + q_bonus),
+                sprint_pts=float(s_pts),
+                race_pts=float(r_pts + r_bonus),
+                total_pts=float(total),
+                xp_score=0.0,
+            ))
+            inserted += 1
+
+    return inserted
+
+
 async def seed_2026_results(
     db: Session,
     race_round_map: dict[int, int],
@@ -817,68 +899,7 @@ async def seed_2026_results(
             continue
 
         rows = await _fetch_2026_round(round_num)
-        for res in rows:
-            driver_id = driver_code_map.get(res["code"])
-            if not driver_id:
-                continue
-            # 2026 results use the driver's current team. Prefer the API-supplied
-            # constructor; fall back to the driver's seeded team.
-            constructor_id = constructor_id_map.get(res.get("constructor_cid") or "")
-            if not constructor_id:
-                drv = db.get(Driver, driver_id)
-                constructor_id = drv.team_id if drv else None
-            if not constructor_id:
-                continue
-
-            if db.query(RaceResult).filter_by(race_id=race_id, driver_id=driver_id).first():
-                continue
-
-            db.add(RaceResult(
-                race_id=race_id,
-                driver_id=driver_id,
-                constructor_id=constructor_id,
-                qualifying_pos=res["quali_pos"],
-                race_pos=res["race_pos"],
-                sprint_pos=res["sprint_pos"],
-                grid_pos=res["grid"],
-                dnf=res["dnf"],
-                dsq=res["dsq"],
-                fastest_lap=res["fastest_lap"],
-                driver_of_day=False,  # not exposed by Ergast/Jolpica
-                positions_gained_quali=0,
-                positions_gained_race=res["positions_gained_race"],
-                overtakes=res["overtakes"],
-                q2_reached=res["q2_reached"],
-                q3_reached=res["q3_reached"],
-                data_source=res["data_source"],
-            ))
-            db.flush()
-
-            # Fantasy points via the scoring engine (same path as 2025 seeding).
-            q_pts = qualifying_position_points(res["quali_pos"], res["dsq"])
-            q_bonus = qualifying_bonus_points(0, 0)
-            r_pts = race_position_points(res["race_pos"], res["dnf"], res["dsq"])
-            r_bonus = race_bonus_points(
-                res["positions_gained_race"], res["overtakes"], res["fastest_lap"], False,
-            )
-            s_pts = 0.0
-            if res["sprint_pos"] is not None or res["sprint_dnf"]:
-                s_pts = float(sprint_position_points(res["sprint_pos"], res["sprint_dnf"]))
-                s_pts += float(sprint_bonus_points(0, 0))
-            total = q_pts + q_bonus + r_pts + r_bonus + s_pts
-
-            if not db.query(FantasyPoints).filter_by(race_id=race_id, driver_id=driver_id).first():
-                db.add(FantasyPoints(
-                    race_id=race_id,
-                    driver_id=driver_id,
-                    qualifying_pts=float(q_pts + q_bonus),
-                    sprint_pts=float(s_pts),
-                    race_pts=float(r_pts + r_bonus),
-                    total_pts=float(total),
-                    xp_score=0.0,
-                ))
-                inserted += 1
-
+        inserted += store_2026_round(db, race_id, rows, driver_code_map, constructor_id_map)
         db.commit()
         src = rows[0]["data_source"] if rows else "n/a"
         logger.info("  R%d 2026 (%s): %d drivers [%s]", round_num,

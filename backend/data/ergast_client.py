@@ -153,6 +153,24 @@ async def get_sprint_results(season: int | str, round_num: int | str) -> list[di
         return []
 
 
+async def get_latest_completed_round(season: int | str = "current") -> Optional[int]:
+    """
+    Return the latest completed round number for a season.
+
+    Uses the driverStandings endpoint, whose StandingsTable.round reports the
+    round of the most recently scored race. Robust against the season-wide
+    /results endpoint's pagination (Jolpica caps the page size, so /results can
+    silently omit later rounds). Returns None if unavailable.
+    """
+    data = await _get(f"/{season}/driverStandings")
+    if not data:
+        return None
+    try:
+        return int(data["MRData"]["StandingsTable"]["round"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 async def get_driver_standings(season: int | str = "current") -> list[dict]:
     """
     Fetch current WDC standings.
