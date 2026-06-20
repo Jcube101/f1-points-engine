@@ -308,6 +308,7 @@ curl -X POST http://localhost:8000/api/validation/run
 ```bash
 cd backend && pytest
 ```
+Expect **204 passing**, 0 failures (`pytest` / `pytest-asyncio` are in `requirements.txt`).
 
 **Sync new race results (post-race)**
 ```bash
@@ -359,4 +360,4 @@ Sync status is exposed at `GET /api/sync/status`.
 
 ---
 
-*CLAUDE.md version: 1.3 | Project: f1-points-engine | Season: F1 2026*
+*CLAUDE.md version: 1.4 | Project: f1-points-engine | Season: F1 2026*

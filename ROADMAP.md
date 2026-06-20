@@ -78,7 +78,7 @@ Turns good fantasy players into great ones. FPL-inspired analytical depth.
 
 ---
 
-## Phase 3: Championship Simulator 🚧 *The non-fantasy hook — Title Odds shipped*
+## Phase 3: Championship Simulator ✅ *Complete*
 
 Makes the tool useful for every F1 fan, not just fantasy players. This is the distribution and marketing engine.
 
@@ -86,22 +86,24 @@ Makes the tool useful for every F1 fan, not just fantasy players. This is the di
 - `POST /api/simulator/title-odds` + `/title-race` page
 - Current championship win probability via Monte Carlo simulation (10,000 runs)
 - Simulation runs the remaining races thousands of times, weighted by each driver's recent finish distribution
-- Championship baseline = **real WDC points** fetched from Jolpica (not fantasy totals)
+- Championship baseline = **real WDC points** fetched from Jolpica (not fantasy totals); after 7 rounds Antonelli leads at ~76.7% title favourite
 - Pace-multiplier sliders (0.5×–1.5×) for interactive "what-if" pace scenarios
-- Updates after every race as new results are seeded
+- Updates after every race as new results land via the automated post-race sync (systemd timer on the Pi)
 
-**Scenario Builder**
+> The three items below were exploratory Phase 3 stretch goals. They are not built and are tracked as future work under Phase 4.
+
+**Scenario Builder** *(future)*
 - Drag-and-drop finishing positions for upcoming races
 - "What if Max retires from the next 2 races?" → see probability shift instantly
 - "What does George need to do in the last 5 races to win?" → system computes minimum required results
 - Shareable scenarios via URL (e.g. `?scenario=VER:DNF,NOR:P1,PIA:P3`)
 
-**Championship Math Panel**
+**Championship Math Panel** *(future)*
 - "Driver X is mathematically eliminated from the title" alerts
 - Maximum possible points remaining per driver
 - Points gap to leader with races remaining
 
-**Season Replay**
+**Season Replay** *(future)*
 - Replay any historical F1 season through the simulator
 - "What if Senna hadn't crashed at Suzuka 1989?" style scenarios
 - Uses Ergast historical data back to 2003
@@ -121,14 +123,16 @@ The app is optimised for use during live race weekends on a phone:
 
 ---
 
-## Future Ideas (Unscheduled)
+## Phase 4: Future Ideas (Unscheduled)
+
+Includes the deferred Phase 3 stretch goals (Scenario Builder, Championship Math Panel, Season Replay) plus:
 
 - **ML chip advisor**: replace rules with a model trained on historical chip outcomes
 - **Multi-user leagues**: leaderboard for groups of friends using the tool together
 - **Push notifications**: "Race starts in 1 hour — set your DRS Boost" reminder
 - **Price prediction model**: predict next week's price changes using xP vs current price
-- **PWA offline support**: service worker for race weekend use without connectivity
+- **Mobile PWA**: service worker / offline support for race weekend use without connectivity
 
 ---
 
-*Roadmap version: 1.3 | Last updated: March 2026*
+*Roadmap version: 1.4 | Last updated: June 2026*

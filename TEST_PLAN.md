@@ -37,7 +37,7 @@ cd frontend && npm install
 python -m pytest backend/tests/ -v
 ```
 
-### Expected: 175 tests pass, 0 failures
+### Expected: 204 tests pass, 0 failures
 
 ### Test file index
 
@@ -53,6 +53,11 @@ python -m pytest backend/tests/ -v
 | `test_api_team.py` | `POST /api/team/optimize` — both modes, budget constraint |
 | `test_api_chips.py` | `POST /api/chips/recommend` — schema, confidence, edge cases |
 | `test_api_transfers.py` | `GET /api/transfers/plan` — structure, nullability, chip field |
+| `test_api_points.py` | `POST /api/points/calculate` — total, breakdown, no_negative + DRS chip order |
+| `test_api_simulator.py` | `POST /api/simulator/title-odds` — odds shape, win prob ∈ [0,1] (WDC baseline mocked) |
+| `test_openf1_client.py` | `build_live_snapshot` — positions gained/overtakes, constructors, total_laps (OpenF1 mocked) |
+| `test_fantasy_validator.py` | `store_validation` + `run_validation` flow (official scores mocked) |
+| `test_sync.py` | Post-race sync `run_sync` — new round stored, existing skipped, dry-run, API-fail (Jolpica mocked) |
 
 ### Run a single test file
 
@@ -81,10 +86,10 @@ python backend/seed.py
 | `constructors` | 11 | All 2026 F1 teams |
 | `drivers` | 22 | 2026 grid — includes Cadillac, Audi, correct LIN/Lindblad |
 | `drivers` (2025-only) | 2 | TSU + DOO, price=0, 2025 results preserved |
-| `races` | 48 | 24 rounds × 2 seasons (2025 + 2026) |
-| `race_results` | ~576 | 24 drivers × 24 rounds (2025 only) |
-| `fantasy_points` | ~576 | Matching race_results |
-| `driver_circuit_profiles` | 60 | 20 active drivers × 3 circuit types |
+| `races` | 46 | 24 rounds 2025 + 22 rounds 2026 |
+| `race_results` | 634 | 480 generated (2025) + 154 real jolpica (2026 R1–7); `data_source` column flags each |
+| `fantasy_points` | 634 | Matching race_results |
+| `driver_circuit_profiles` | 72 | 24 drivers × 3 circuit types (2025 + 2026 data) |
 
 ### Verify seed counts
 
@@ -104,10 +109,10 @@ EOF
 ```
 constructors: 11
 drivers: 24          ← 22 active + 2 retired (TSU, DOO)
-races: 48
-race_results: 576
-fantasy_points: 576
-driver_circuit_profiles: 60
+races: 46            ← 24 in 2025 + 22 in 2026
+race_results: 634    ← 480 (2025 generated) + 154 (2026 R1–7, real from Jolpica)
+fantasy_points: 634
+driver_circuit_profiles: 72
 ```
 
 ---
@@ -279,6 +284,21 @@ curl -s -X POST http://localhost:8000/api/chips/recommend \
   | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(d['chip'], '-', d['confidence'], ':', d['reason'][:80])"
 ```
 
+### 5.9 Post-race sync
+
+```bash
+# Sync status (DB vs latest completed round)
+curl -s http://localhost:8000/api/sync/status | python3 -c "
+import json, sys
+d = json.load(sys.stdin)['data']
+print(f\"status={d['status']} last_round_synced={d['last_round_synced']} next={d['next_round_name']}\")
+"
+
+# Standalone sync script — dry run (no writes); exits 0
+.venv/bin/python backend/scripts/sync_results.py --dry-run
+# Expected: prints completed rounds, already-in-DB rounds, and what would sync
+```
+
 ---
 
 ## Step 6 — Frontend build validation
@@ -369,11 +389,13 @@ EOF
 
 Run this checklist after any edit to `backend/`:
 
-- [ ] `python -m pytest backend/tests/ -q` — all 175 pass
+- [ ] `python -m pytest backend/tests/ -q` — all 204 pass
 - [ ] `python backend/seed.py` — exits cleanly, prints seeded row counts
 - [ ] `curl http://localhost:8000/api/drivers | python3 -c "import json,sys; print(len(json.load(sys.stdin)['data']), 'drivers')"` — returns 22
 - [ ] `curl http://localhost:8000/api/drivers/circuit-fit?circuit_type=street` — returns sorted list
 - [ ] `curl http://localhost:8000/api/transfers/plan?drivers=VER,LEC` — returns ≤3 moves
+- [ ] `.venv/bin/python backend/scripts/sync_results.py --dry-run` — exits 0, prints completed vs already-synced rounds
+- [ ] `curl http://localhost:8000/api/sync/status` — returns `status` of `up_to_date` / `behind` / `no_data`
 
 Run this checklist after any edit to `frontend/`:
 
@@ -396,4 +418,4 @@ When a CI pipeline is added (GitHub Actions), the recommended workflow is:
 
 ---
 
-*Test Plan version: 1.0 | Project: f1-points-engine | Tests: 175 passing*
+*Test Plan version: 1.1 | Project: f1-points-engine | Tests: 204 passing*
