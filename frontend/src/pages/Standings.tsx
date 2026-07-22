@@ -66,7 +66,7 @@ export default function Standings() {
             <button
               key={yr}
               onClick={() => setSeason(yr)}
-              className={`min-h-[36px] px-3 py-1 rounded text-sm font-medium transition-colors ${
+              className={`min-h-[44px] px-3 py-1 rounded text-sm font-medium transition-colors ${
                 season === yr
                   ? 'bg-red-600 text-white'
                   : 'text-gray-400 hover:text-white'

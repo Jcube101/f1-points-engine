@@ -62,7 +62,10 @@ async def calculate_points(req: CalculateRequest, db: Session = Depends(get_db))
         # Sprint points (if applicable). sprint_pos None = no sprint this weekend.
         s_pts = 0
         if result.sprint_pos is not None:
-            s_pts = sprint_position_points(result.sprint_pos, dsq=result.dsq)
+            # RaceResult has no sprint-specific DNF column; result.dnf (race DNF) is the
+            # best available proxy since a driver who didn't finish the race weekend
+            # typically didn't finish the sprint either.
+            s_pts = sprint_position_points(result.sprint_pos, dnf=result.dnf, dsq=result.dsq)
             s_pts += sprint_bonus_points(result.positions_gained_race, result.overtakes)
 
         total = q_pts + q_bonus + r_pts + r_bonus + s_pts

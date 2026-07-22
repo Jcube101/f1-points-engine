@@ -38,3 +38,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local-only notes (kept locally, not tracked)
+Audit_Jun_19.md
+TEST_PLAN.md
