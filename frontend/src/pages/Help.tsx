@@ -19,7 +19,7 @@ const FAQ: Section[] = [
   {
     title: 'Chips & Strategy',
     content:
-      "Chips are one-time boosts you can play during the season: Triple Captain doubles your captain's points, Wildcard lets you make unlimited free transfers for one gameweek, No Negative prevents negative scoring, and DRS Boost doubles a driver's race points. The Chip Advisor page recommends the best chip for each race based on circuit type, team value, and remaining rounds.",
+      "Chips are one-time boosts you can play during the season: DRS Boost doubles (2×) your selected driver's points, Extra DRS triples them (3×), No Negative floors any negative score to 0, Wildcard resets your entire team for free, Limitless lets you pick any team regardless of budget for one race, Autopilot auto-applies a 2× boost to your highest scorer, and Final Fix gives unlimited free transfers in the last race of the season. The Chip Advisor page recommends the best chip for each race based on circuit type, team value, and remaining rounds.",
   },
   {
     title: 'Team Optimizer',
@@ -29,7 +29,7 @@ const FAQ: Section[] = [
   {
     title: 'Intelligence Features',
     content:
-      'Phase 2 intelligence tools include: Form vs Luck Detector (identifies if a driver\'s recent results are skill or variance), Circuit Intelligence (avg points by circuit type), Differential Finder (high-ownership value picks), Teammate Comparison (head-to-head stats), and Transfer Planner (suggested moves for upcoming races). Access these from the driver and constructor cards.',
+      'Deeper analytics tools include: Form vs Luck Detector (identifies if a driver\'s recent results are skill or variance), Circuit Intelligence (avg points by circuit type), Differential Finder (flags top-30% xP drivers priced under $12M — cheap picks punching above their price), Teammate Comparison (head-to-head stats), and Transfer Planner (suggested moves for upcoming races). Access these from the driver and constructor cards.',
   },
   {
     title: 'Title Race Calculator',
