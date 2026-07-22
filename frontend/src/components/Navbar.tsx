@@ -7,7 +7,6 @@ const links = [
   { to: '/standings', label: 'Standings' },
   { to: '/chips', label: 'Chip Advisor' },
   { to: '/title-race', label: 'Title Race' },
-  { to: '/validation', label: 'Score Check' },
 ]
 
 export default function Navbar() {

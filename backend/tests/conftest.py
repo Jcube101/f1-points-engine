@@ -30,7 +30,7 @@ def _create_tables():
     from backend.db.database import Base
     from backend.data.models import (  # noqa: F401
         Constructor, Driver, Race, RaceResult,
-        FantasyPoints, ScoreValidation, DriverCircuitProfile,
+        FantasyPoints, DriverCircuitProfile,
     )
     Base.metadata.create_all(bind=engine)
 

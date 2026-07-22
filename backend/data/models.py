@@ -36,7 +36,6 @@ class Driver(Base):
     constructor = relationship("Constructor", back_populates="drivers")
     race_results = relationship("RaceResult", back_populates="driver")
     fantasy_points = relationship("FantasyPoints", back_populates="driver")
-    score_validations = relationship("ScoreValidation", back_populates="driver")
     circuit_profiles = relationship("DriverCircuitProfile", back_populates="driver")
 
 
@@ -55,7 +54,6 @@ class Race(Base):
 
     results = relationship("RaceResult", back_populates="race")
     fantasy_points = relationship("FantasyPoints", back_populates="race")
-    score_validations = relationship("ScoreValidation", back_populates="race")
 
 
 class RaceResult(Base):
@@ -123,22 +121,6 @@ class DriverCircuitProfile(Base):
     races_counted = Column(Integer, default=0)
 
     driver = relationship("Driver", back_populates="circuit_profiles")
-
-
-class ScoreValidation(Base):
-    __tablename__ = "score_validations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    race_id = Column(Integer, ForeignKey("races.id"), nullable=False)
-    driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=False)
-
-    our_score = Column(Float, nullable=False)
-    official_score = Column(Float, nullable=True)
-    delta = Column(Float, nullable=True)
-    validated_at = Column(DateTime, default=datetime.utcnow)
-
-    race = relationship("Race", back_populates="score_validations")
-    driver = relationship("Driver", back_populates="score_validations")
 
 
 class SyncLog(Base):

@@ -205,16 +205,6 @@ export interface ValueLeaderboardEntry {
   price_trend: number
 }
 
-export interface ScoreValidationEntry {
-  race_name: string
-  driver_name: string
-  driver_code: string
-  our_score: number
-  official_score: number | null
-  delta: number | null
-  validated_at: string
-}
-
 export interface LiveDriver {
   driver_number: number
   driver_id: string

@@ -4,7 +4,7 @@ import type {
   Driver, Constructor, Race, RaceResult, OptimizedTeam,
   FantasyPointsBreakdown, ChipRecommendation,
   WDCStanding, WCCStanding, ValueLeaderboardEntry,
-  ScoreValidationEntry, ProgressionRound,
+  ProgressionRound,
   DriverForm, CircuitFitEntry, UpcomingRaceDifficulty,
   TeammateComparison, TransferMove, ApiResponse,
 } from './types'
@@ -102,18 +102,6 @@ export async function fetchValueLeaderboard(season = 2026): Promise<ValueLeaderb
 
 export async function fetchProgression(season = 2026): Promise<ProgressionRound[]> {
   const res = await http.get<ApiResponse<ProgressionRound[]>>('/standings/progression', { params: { season } })
-  return res.data.data
-}
-
-// ─── Validation ──────────────────────────────────────────────────────────────
-
-export async function fetchValidation(): Promise<ScoreValidationEntry[]> {
-  const res = await http.get<ApiResponse<ScoreValidationEntry[]>>('/validation/latest')
-  return res.data.data
-}
-
-export async function runValidation(): Promise<unknown> {
-  const res = await http.post<ApiResponse<unknown>>('/validation/run')
   return res.data.data
 }
 

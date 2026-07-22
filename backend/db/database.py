@@ -30,7 +30,7 @@ def get_db():
 def init_db():
     """Create all tables on startup. No migration system needed."""
     from backend.data.models import (  # noqa: F401 — import to register models
-        Driver, Constructor, Race, RaceResult, FantasyPoints, ScoreValidation,
+        Driver, Constructor, Race, RaceResult, FantasyPoints,
         DriverCircuitProfile, SyncLog,
     )
     Base.metadata.create_all(bind=engine)

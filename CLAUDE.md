@@ -86,7 +86,6 @@ backend/core/expected_points.py  ← xP calculation (rolling avg + circuit weigh
 backend/core/config.py           ← CURRENT_SEASON, scoring tables, budget cap
 backend/data/openf1_client.py    ← OpenF1 API wrapper (live race data)
 backend/data/ergast_client.py    ← Ergast/Jolpica API wrapper (historical + calendar)
-backend/data/fantasy_validator.py ← Cross-check scores vs official F1 Fantasy API
 backend/scheduler/live_poller.py  ← Polls OpenF1 every 30s during race sessions (APScheduler)
 backend/scripts/sync_results.py  ← Standalone post-race sync (systemd timer, NOT FastAPI):
                                     ingests new completed rounds from Jolpica, scores via
@@ -163,9 +162,6 @@ frontend/tailwind.config.ts      ← xs breakpoint (390px), scrollbar-none utili
 |--------|----------|------|
 | OpenF1 API (openf1.org) | Live race data: positions, laps, pit stops | None required |
 | Ergast API (ergast.com/mrd) | Calendar, historical results, standings | None required |
-| F1 Fantasy API (fantasy.formula1.com) | Post-race score validation only | None required (public feeds) |
-
-**Important**: The F1 Fantasy API is unofficial and undocumented. Use it only in `fantasy_validator.py` for post-race validation. Never use it as a primary data source.
 
 ---
 
@@ -207,19 +203,6 @@ xP is shown on driver cards and used as the optimizer's projected score input.
 - Pushes updates every 30 seconds with full driver/constructor fantasy points breakdown
 - If OpenF1 is unreachable: push last known state with `"stale": true` flag
 - Session type is auto-detected from OpenF1 session data
-
----
-
-## Score Validation
-
-After each race weekend:
-1. `fantasy_validator.py` fetches official scores from F1 Fantasy API
-2. Compares to our computed scores from `scoring.py`
-3. Stores diff in `ScoreValidation` table
-4. `GET /api/validation/latest` exposes this for the frontend
-5. Any discrepancy > 0 points logs a warning with driver, race, and delta
-
-Target: 100% match with official scores. Discrepancies reveal scoring rule bugs.
 
 ---
 
@@ -299,16 +282,11 @@ curl "http://localhost:8000/api/constructors/1/teammates" | python3 -c "import j
 curl "http://localhost:8000/api/transfers/plan?drivers=VER,NOR" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(len(d), 'transfer moves')"
 ```
 
-**Manually trigger score validation**
-```bash
-curl -X POST http://localhost:8000/api/validation/run
-```
-
 **Run backend tests**
 ```bash
 cd backend && pytest
 ```
-Expect **204 passing**, 0 failures (`pytest` / `pytest-asyncio` are in `requirements.txt`).
+Expect **202 passing**, 0 failures (`pytest` / `pytest-asyncio` are in `requirements.txt`).
 
 **Sync new race results (post-race)**
 ```bash

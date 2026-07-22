@@ -14,7 +14,6 @@ Everything a fantasy player needs to compete seriously.
 - Full rules implementation: qualifying, sprint, grand prix
 - All bonuses: positions gained/lost, overtakes, fastest lap, pit stops
 - Chip effects: DRS Boost (2×/3×), No Negative, Wildcard, Limitless, Autopilot, Final Fix
-- Score validation layer: cross-check our computed scores vs official F1 Fantasy API after each race
 
 **Live Race Tracker**
 - OpenF1 API integration (lap-by-lap position, pit stops, fastest lap)

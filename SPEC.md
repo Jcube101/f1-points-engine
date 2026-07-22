@@ -49,7 +49,6 @@
 ### Data Sources
 - **Primary race data**: OpenF1 API (https://openf1.org) — free, no auth, real-time lap data
 - **Historical/schedule data**: Ergast API (http://ergast.com/mrd/)
-- **Fantasy score validation**: Unofficial F1 Fantasy API (https://fantasy.formula1.com/feeds/) — used only as a post-race validation layer to cross-check our computed scores against the official ones. Not used as primary source.
 - **All fantasy scoring is computed locally** using the rules engine in `backend/core/scoring.py`
 
 ---
@@ -75,8 +74,7 @@ f1-points-engine/
 │   │       ├── points.py
 │   │       ├── chips.py
 │   │       ├── live.py
-│   │       ├── standings.py     # F1 WDC + WCC standings
-│   │       └── validation.py    # Cross-check vs official F1 Fantasy scores
+│   │       └── standings.py     # F1 WDC + WCC standings
 │   ├── core/
 │   │   ├── scoring.py           # ALL fantasy scoring logic lives here
 │   │   ├── optimizer.py         # PuLP team optimizer
@@ -86,7 +84,6 @@ f1-points-engine/
 │   ├── data/
 │   │   ├── openf1_client.py
 │   │   ├── ergast_client.py
-│   │   ├── fantasy_validator.py # Fetches official scores for validation
 │   │   └── models.py
 │   ├── db/
 │   │   └── database.py
@@ -219,9 +216,6 @@ Constructor bonuses: fastest pit stop +5, sub-2.0s pit +20, new pit record +15 a
 - No Negative chip: any negative driver/constructor total is floored to 0
 - Autopilot: system applies 2× to the highest-scoring driver post-race
 
-### Scoring Validation (`backend/data/fantasy_validator.py`)
-After each race weekend, fetch official fantasy scores from the F1 Fantasy API and compare them to our computed scores. Store the diff in a `ScoreValidation` table. Expose via `GET /api/validation/latest` so the frontend can show a "Score accuracy" panel. Target: 100% match. Any discrepancy triggers a logged warning with the driver, race, and delta.
-
 ---
 
 ## Feature 3: Live Race Points Tracker
@@ -339,7 +333,6 @@ Constructor: id, name, code, color_hex, price
 Race: id, name, circuit, country, date, session_type, round_number, season, circuit_type (street|power|balanced)
 RaceResult: id, race_id, driver_id, constructor_id, qualifying_pos, race_pos, sprint_pos, dnf, dsq, fastest_lap, driver_of_day, pit_duration_ms, positions_gained_quali, positions_gained_race, overtakes, q2_reached, q3_reached
 FantasyPoints: id, race_id, driver_id, qualifying_pts, sprint_pts, race_pts, total_pts, xp_score
-ScoreValidation: id, race_id, driver_id, our_score, official_score, delta, validated_at
 ```
 
 ---
@@ -361,7 +354,6 @@ ScoreValidation: id, race_id, driver_id, our_score, official_score, delta, valid
 | GET | /api/standings/progression | Cumulative fantasy pts per driver per round (DB-sourced, all 24 rounds) |
 | GET | /api/standings/value | Fantasy value leaderboard (xP per $M) |
 | POST | /api/simulator/title-odds | Monte Carlo title-odds simulation (real WDC baseline) |
-| GET | /api/validation/latest | Our score vs official score diff |
 | GET | /api/live/status | Is a session currently live? |
 | GET | /api/sync/status | Post-race sync status (last_sync, rounds_in_db, next_round, status) |
 | WS | /ws/live | WebSocket: live race point updates |
@@ -391,7 +383,7 @@ The repo must include a `CLAUDE.md` at root. See separate CLAUDE.md file.
 ## README Requirements
 
 1. What this is (one paragraph)
-2. Features: team optimizer, live tracker, chip advisor, standings, score validator
+2. Features: team optimizer, live tracker, chip advisor, standings
 3. Screenshot placeholder
 4. Quickstart: `docker-compose up` → open localhost:5173
 5. Manual setup: backend + frontend separately
@@ -423,7 +415,7 @@ The repo must include a `CLAUDE.md` at root. See separate CLAUDE.md file.
 - `overflow-x-hidden` on root; `-webkit-tap-highlight-color: transparent`
 - Team Builder: single-column cards, sticky footer with DRS pills + budget bar + optimize button
 - Live Race: sticky session progress bar, tap-to-expand rows, ▲/▼ delta text for accessibility
-- Standings: chart in `overflow-x-auto` wrapper with `min-w-[480px]`, sticky first table column, top-5 with "Show all" toggle
+- Standings: chart in `overflow-x-auto` wrapper with `min-w-[480px]`, sticky first table column
 - Chip Advisor: full-width on mobile (`md:grid-cols-2` collapses to 1 col), 52px minimum action button, prominent confidence badge
 
 ---
@@ -436,8 +428,7 @@ A first-time reviewer should be able to:
 3. Click "Live Race" during a race weekend and see live fantasy points
 4. Get a chip recommendation with a plain-English reason
 5. See WDC and WCC standings with a points progression chart
-6. See a score validation panel showing our accuracy vs the official game
-7. Read the README and understand the project in under 5 minutes
+6. Read the README and understand the project in under 5 minutes
 
 ---
 

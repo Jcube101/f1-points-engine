@@ -14,7 +14,6 @@ F1 Points Engine is an open-source fantasy F1 tool that helps you win your fanta
 | **Live Race Tracker** | Streams real-time fantasy points from OpenF1 every 30 seconds via WebSocket — your team highlighted, fastest lap indicator, positions gained. Tap any row for full points breakdown |
 | **Chip Advisor** | Rule-based chip recommendations (street circuit → No Negative, banked transfers → Wildcard) with confidence rating and plain-English explanation |
 | **Standings** | F1 WDC + WCC standings with 2025/2026 season toggle; scrollable fantasy points progression chart; fantasy value leaderboard ranked by xP per $M |
-| **Score Validator** | Cross-checks our computed scores against the official F1 Fantasy API after each race and reports any discrepancies |
 | **Expected Points (xP)** | Rolling weighted average (50/30/20%) × circuit-type multiplier × teammate gap factor — shown on every driver card and used by the optimizer |
 
 ### Phase 2 — Intelligence Layer ✅
@@ -153,7 +152,6 @@ Weights: 50% most recent, 30% previous, 20% oldest. Circuit types: `street` / `p
 | GET | `/api/standings/wcc?season=` | Constructors Championship |
 | GET | `/api/standings/value?season=` | Fantasy value leaderboard |
 | GET | `/api/standings/progression?season=` | Cumulative fantasy points per driver per round |
-| GET | `/api/validation/latest` | Our scores vs official F1 Fantasy API |
 | GET | `/api/sync/status` | Post-race sync status: `last_sync`, `last_round_synced`, `rounds_in_db`, `next_round`, `status` (`up_to_date`/`behind`/`no_data`) |
 | WS | `/ws/live` | Real-time race fantasy point updates (every 30s) |
 
@@ -192,7 +190,6 @@ Tables created automatically by SQLAlchemy `create_all()` on startup:
 | `race_results` | Qualifying pos, race pos, sprint pos, DNF/DSQ/fastest lap per driver per race; `data_source` flags each row (`jolpica` / `real` / `generated`) |
 | `fantasy_points` | Computed fantasy point totals per driver per race |
 | `driver_circuit_profiles` | Per-driver average pts by circuit type (street / power / balanced) — 72 rows |
-| `score_validations` | Our computed scores vs official F1 Fantasy API |
 | `sync_logs` | One row per post-race sync run (`synced_at`, `rounds_synced`, `success`) |
 
 Seed counts after `python backend/seed.py`:
@@ -224,8 +221,7 @@ f1-points-engine/
 │   ├── data/
 │   │   ├── models.py              # SQLAlchemy ORM models (all DB tables)
 │   │   ├── openf1_client.py       # Live race data (OpenF1 API)
-│   │   ├── ergast_client.py       # Calendar + historical results (Ergast/Jolpica)
-│   │   └── fantasy_validator.py   # Post-race score validation
+│   │   └── ergast_client.py       # Calendar + historical results (Ergast/Jolpica)
 │   ├── api/routes/
 │   │   ├── drivers.py             # /api/drivers — includes Phase 2 form + circuit fit
 │   │   ├── constructors.py        # /api/constructors + teammate comparison
@@ -236,7 +232,6 @@ f1-points-engine/
 │   │   ├── chips.py               # /api/chips/recommend
 │   │   ├── points.py              # /api/points/calculate + leaderboard
 │   │   ├── simulator.py           # /api/simulator/title-odds (Phase 3)
-│   │   ├── validation.py          # /api/validation
 │   │   └── sync.py                # /api/sync/status (post-race sync state)
 │   ├── db/
 │   │   └── database.py            # SQLAlchemy engine + session + init_db()
@@ -244,7 +239,7 @@ f1-points-engine/
 │   │   └── live_poller.py         # APScheduler: polls OpenF1 every 30s (live only)
 │   ├── scripts/
 │   │   └── sync_results.py        # Standalone post-race sync (systemd timer, not FastAPI)
-│   └── tests/                     # Pytest test suite (204 tests)
+│   └── tests/                     # Pytest test suite (202 tests)
 │       ├── conftest.py            # In-memory test DB + seeded fixtures
 │       ├── test_scoring.py        # Unit tests — scoring.py (60 tests)
 │       ├── test_expected_points.py # Unit tests — expected_points.py (28 tests)
@@ -258,7 +253,6 @@ f1-points-engine/
 │       ├── test_api_points.py     # /api/points/calculate
 │       ├── test_api_simulator.py  # /api/simulator/title-odds (WDC baseline mocked)
 │       ├── test_openf1_client.py  # build_live_snapshot (OpenF1 mocked)
-│       ├── test_fantasy_validator.py # score validation flow
 │       └── test_sync.py           # post-race sync (Jolpica mocked)
 ├── frontend/
 │   └── src/
@@ -311,7 +305,7 @@ python -m pytest backend/tests/ -v
 python -m pytest backend/tests/test_scoring.py -v
 ```
 
-**204 tests, 0 failures.** See [TEST_PLAN.MD](TEST_PLAN.MD) for the complete validation guide including manual smoke tests and a data integrity checklist.
+**202 tests, 0 failures.** See [TEST_PLAN.MD](TEST_PLAN.MD) for the complete validation guide including manual smoke tests and a data integrity checklist.
 
 ---
 
@@ -430,7 +424,7 @@ journalctl -u f1-sync -n 50
 
 See [ROADMAP.MD](ROADMAP.MD) for the full phased plan.
 
-- **Phase 1** ✅ — Team optimizer, live race tracker, chip advisor, standings, score validator, xP engine
+- **Phase 1** ✅ — Team optimizer, live race tracker, chip advisor, standings, xP engine
 - **Phase 2** ✅ — Circuit intelligence, differential finder, form vs luck detector, teammate comparison, transfer planner
 - **Phase 3** ✅ — Calendar fixes, Monte Carlo title odds simulator (real WDC baseline) with pace sliders, Help FAQ page
 - **Phase 4** 🔮 — Future: ML chip advisor, multi-user leagues, price prediction model, mobile PWA
