@@ -100,38 +100,6 @@ export default function Standings() {
 
       {tab === 'wdc' && (
         <div className="space-y-4">
-          {/* Points progression chart — from DB, all 24 rounds, horizontally scrollable on mobile */}
-          {progression.length > 0 && (
-            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-              <h2 className="font-semibold text-white mb-3 text-sm">
-                Fantasy Points Progression — Top 5 ({season})
-              </h2>
-              <div className="overflow-x-auto -mx-1">
-                <div className="min-w-[480px] px-1">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={progression}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="round_name" tick={{ fill: '#9CA3AF', fontSize: 10 }} interval={3} />
-                      <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px' }} />
-                      <Legend />
-                      {top5Codes.map((code, i) => (
-                        <Line
-                          key={code}
-                          type="monotone"
-                          dataKey={code}
-                          stroke={COLORS[i % COLORS.length]}
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                      ))}
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          )}
-
           {wdcLoading ? (
             <p className="text-gray-400 text-sm">Loading standings...</p>
           ) : wdc.length === 0 ? (
@@ -139,12 +107,12 @@ export default function Standings() {
               {season === 2026 ? (
                 <>
                   <p className="text-gray-400">2026 season has not started yet</p>
-                  <p className="text-xs text-gray-600 mt-1">Fantasy standings from 2025 history shown in the chart above</p>
+                  <p className="text-xs text-gray-600 mt-1">See the Fantasy Value tab for the 2025 points progression chart</p>
                 </>
               ) : (
                 <>
                   <p className="text-gray-400">WDC standings unavailable (Ergast API offline)</p>
-                  <p className="text-xs text-gray-600 mt-1">Fantasy points progression shown above</p>
+                  <p className="text-xs text-gray-600 mt-1">See the Fantasy Value tab for the points progression chart</p>
                 </>
               )}
             </div>
@@ -249,6 +217,45 @@ export default function Standings() {
 
       {tab === 'value' && (
         <div>
+          {/* Points progression chart — completed rounds only, horizontally scrollable on mobile */}
+          {progression.length > 0 && (
+            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-4">
+              <h2 className="font-semibold text-white mb-3 text-sm">
+                Fantasy Points Progression — Top 5 ({season})
+              </h2>
+              <div className="overflow-x-auto overflow-y-hidden -mx-1">
+                <div className="min-w-[480px] px-1">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <LineChart data={progression} margin={{ bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis
+                        dataKey="round_name"
+                        tick={{ fill: '#9CA3AF', fontSize: 10 }}
+                        interval={0}
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                      />
+                      <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px' }} />
+                      <Legend />
+                      {top5Codes.map((code, i) => (
+                        <Line
+                          key={code}
+                          type="monotone"
+                          dataKey={code}
+                          stroke={COLORS[i % COLORS.length]}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+
           {valueLoading ? (
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : (

@@ -65,7 +65,8 @@ async def get_season_progression(
     db: Session = Depends(get_db),
 ):
     """
-    Return cumulative fantasy points per driver per round for a given season.
+    Return cumulative fantasy points per driver per round for a given season,
+    for completed rounds only (rounds with no scored results yet are omitted).
 
     Computes progressive totals from the FantasyPoints table — does not rely on
     the Ergast API. Used to render the championship points progression chart.
@@ -98,12 +99,16 @@ async def get_season_progression(
             continue
         per_round.setdefault(round_num, {})[code] = fp.total_pts
 
-    # Build cumulative progression across rounds
+    # Build cumulative progression, skipping rounds with no scored results yet
+    # (a round only has an entry in per_round once at least one driver has been
+    # scored for it) so future/unplayed races never appear on the chart.
     result = []
     cumulative: dict[str, float] = {}
     for race in races:
         rn = race.round_number
-        for code, pts in per_round.get(rn, {}).items():
+        if rn not in per_round:
+            continue
+        for code, pts in per_round[rn].items():
             cumulative[code] = round(cumulative.get(code, 0.0) + pts, 1)
         entry: dict[str, object] = {
             "round": rn,
