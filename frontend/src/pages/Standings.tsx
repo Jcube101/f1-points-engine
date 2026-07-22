@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchWDC, fetchWCC, fetchValueLeaderboard, fetchProgression, fetchUpcomingDifficulty } from '../lib/api'
+import { fetchWDC, fetchWCC, fetchValueLeaderboard, fetchProgression, fetchUpcomingDifficulty, fetchDrivers } from '../lib/api'
 import ValueRankings from '../components/ValueRankings'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -15,8 +15,6 @@ const COLORS = ['#E8002D', '#FF8000', '#3671C6', '#27F4D2', '#229971']
 export default function Standings() {
   const [tab, setTab] = useState<Tab>('wdc')
   const [season, setSeason] = useState<Season>(2026)
-  const [showAllWdc, setShowAllWdc] = useState(false)
-  const [showAllWcc, setShowAllWcc] = useState(false)
 
   const { data: wdc = [], isLoading: wdcLoading } = useQuery({
     queryKey: ['wdc', season],
@@ -35,10 +33,19 @@ export default function Standings() {
     queryFn: () => fetchProgression(season),
   })
 
-  const { data: upcomingDifficulty = [], isLoading: fixturesLoading } = useQuery({
-    queryKey: ['upcomingDifficulty'],
-    queryFn: () => fetchUpcomingDifficulty([]),
+  // Fixture View needs a set of driver codes to score circuit fit against —
+  // use every active 2026-grid driver so every race gets fit data.
+  const { data: allDrivers = [] } = useQuery({
+    queryKey: ['allDriversForFixtures'],
+    queryFn: () => fetchDrivers(),
     enabled: tab === 'fixtures',
+  })
+  const driverCodes = allDrivers.map((d) => d.code)
+
+  const { data: upcomingDifficulty = [], isLoading: fixturesLoading } = useQuery({
+    queryKey: ['upcomingDifficulty', driverCodes.join(',')],
+    queryFn: () => fetchUpcomingDifficulty(driverCodes),
+    enabled: tab === 'fixtures' && driverCodes.length > 0,
   })
 
   // Derive top 5 driver codes from the final round's cumulative totals
@@ -50,10 +57,6 @@ export default function Standings() {
         .slice(0, 5)
         .map(([code]) => code)
     : []
-
-  // On mobile show top 5 by default, toggle for all
-  const visibleWdc = showAllWdc ? wdc : wdc.slice(0, 5)
-  const visibleWcc = showAllWcc ? wcc : wcc.slice(0, 5)
 
   return (
     <div className="space-y-4">
@@ -117,29 +120,35 @@ export default function Standings() {
               )}
             </div>
           ) : (
-            <>
-              {/* WDC table — fixed first column, horizontal scroll on mobile */}
+              /* WDC table — fixed column widths (consistent across seasons), horizontal scroll on mobile */
               <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[380px]">
+                  <table className="w-full text-sm min-w-[380px] table-fixed">
+                    <colgroup>
+                      <col className="w-10" />
+                      <col className="w-[38%]" />
+                      <col className="w-[32%]" />
+                      <col className="w-[12%]" />
+                      <col className="w-[10%]" />
+                    </colgroup>
                     <thead className="bg-gray-700/50">
                       <tr className="text-left text-gray-400">
-                        <th className="px-3 py-3 sticky left-0 z-10 bg-gray-700/90 w-8">#</th>
-                        <th className="px-3 py-3 sticky left-9 z-10 bg-gray-700/90 whitespace-nowrap">Driver</th>
+                        <th className="px-3 py-3 sticky left-0 z-10 bg-gray-700/90">#</th>
+                        <th className="px-3 py-3 sticky left-10 z-10 bg-gray-700/90 whitespace-nowrap">Driver</th>
                         <th className="px-3 py-3 whitespace-nowrap text-xs">Team</th>
                         <th className="px-3 py-3 text-right whitespace-nowrap">Pts</th>
                         <th className="px-3 py-3 text-right whitespace-nowrap">W</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
-                      {visibleWdc.map((s) => (
+                      {wdc.map((s) => (
                         <tr key={s.driver_id} className="hover:bg-gray-700/30">
                           <td className="px-3 py-3 text-gray-400 sticky left-0 z-10 bg-gray-800">{s.position}</td>
-                          <td className="px-3 py-3 sticky left-9 z-10 bg-gray-800 whitespace-nowrap">
+                          <td className="px-3 py-3 sticky left-10 z-10 bg-gray-800 whitespace-nowrap overflow-hidden text-ellipsis">
                             <span className="font-medium text-white">{s.driver_name}</span>
                             <span className="ml-1.5 text-xs text-gray-500 font-mono hidden sm:inline">{s.driver_code}</span>
                           </td>
-                          <td className="px-3 py-3 text-gray-400 text-xs whitespace-nowrap">{s.team}</td>
+                          <td className="px-3 py-3 text-gray-400 text-xs whitespace-nowrap overflow-hidden text-ellipsis">{s.team}</td>
                           <td className="px-3 py-3 text-right font-bold text-white">{s.points}</td>
                           <td className="px-3 py-3 text-right text-gray-400">{s.wins}</td>
                         </tr>
@@ -147,18 +156,7 @@ export default function Standings() {
                     </tbody>
                   </table>
                 </div>
-
-                {/* Show all / show less toggle (mobile: shown when >5 entries) */}
-                {wdc.length > 5 && (
-                  <button
-                    onClick={() => setShowAllWdc((v) => !v)}
-                    className="w-full py-3 text-xs text-gray-400 hover:text-white border-t border-gray-700 transition-colors min-h-[44px]"
-                  >
-                    {showAllWdc ? 'Show top 5 only' : `Show all ${wdc.length} drivers`}
-                  </button>
-                )}
               </div>
-            </>
           )}
         </div>
       )}
@@ -181,20 +179,26 @@ export default function Standings() {
           ) : (
             <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[320px]">
+                <table className="w-full text-sm min-w-[320px] table-fixed">
+                  <colgroup>
+                    <col className="w-10" />
+                    <col className="w-[70%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[10%]" />
+                  </colgroup>
                   <thead className="bg-gray-700/50">
                     <tr className="text-left text-gray-400">
-                      <th className="px-3 py-3 sticky left-0 z-10 bg-gray-700/90 w-8">#</th>
-                      <th className="px-3 py-3 sticky left-9 z-10 bg-gray-700/90 whitespace-nowrap">Constructor</th>
+                      <th className="px-3 py-3 sticky left-0 z-10 bg-gray-700/90">#</th>
+                      <th className="px-3 py-3 sticky left-10 z-10 bg-gray-700/90 whitespace-nowrap">Constructor</th>
                       <th className="px-3 py-3 text-right whitespace-nowrap">Pts</th>
                       <th className="px-3 py-3 text-right whitespace-nowrap">W</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {visibleWcc.map((s) => (
+                    {wcc.map((s) => (
                       <tr key={s.constructor_id} className="hover:bg-gray-700/30">
                         <td className="px-3 py-3 text-gray-400 sticky left-0 z-10 bg-gray-800">{s.position}</td>
-                        <td className="px-3 py-3 font-medium text-white sticky left-9 z-10 bg-gray-800 whitespace-nowrap">{s.constructor_name}</td>
+                        <td className="px-3 py-3 font-medium text-white sticky left-10 z-10 bg-gray-800 whitespace-nowrap overflow-hidden text-ellipsis">{s.constructor_name}</td>
                         <td className="px-3 py-3 text-right font-bold text-white">{s.points}</td>
                         <td className="px-3 py-3 text-right text-gray-400">{s.wins}</td>
                       </tr>
@@ -202,14 +206,6 @@ export default function Standings() {
                   </tbody>
                 </table>
               </div>
-              {wcc.length > 5 && (
-                <button
-                  onClick={() => setShowAllWcc((v) => !v)}
-                  className="w-full py-3 text-xs text-gray-400 hover:text-white border-t border-gray-700 transition-colors min-h-[44px]"
-                >
-                  {showAllWcc ? 'Show top 5 only' : `Show all ${wcc.length} constructors`}
-                </button>
-              )}
             </div>
           )}
         </div>
