@@ -63,14 +63,21 @@ export default function Standings() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Standings</h1>
 
-        {/* Season toggle */}
-        <div className="flex gap-1 bg-gray-800 rounded-lg p-1 border border-gray-700">
+        {/* Season toggle — has no effect on Fixture View, which always shows the
+            current season's upcoming races, so it's greyed out and disabled there */}
+        <div
+          className="flex gap-1 bg-gray-800 rounded-lg p-1 border border-gray-700"
+          title={tab === 'fixtures' ? 'Fixture View always shows the current season' : undefined}
+        >
           {([2025, 2026] as Season[]).map((yr) => (
             <button
               key={yr}
               onClick={() => setSeason(yr)}
+              disabled={tab === 'fixtures'}
               className={`min-h-[44px] px-3 py-1 rounded text-sm font-medium transition-colors ${
-                season === yr
+                tab === 'fixtures'
+                  ? 'text-gray-600 cursor-not-allowed'
+                  : season === yr
                   ? 'bg-red-600 text-white'
                   : 'text-gray-400 hover:text-white'
               }`}
@@ -259,6 +266,7 @@ export default function Standings() {
         <div className="space-y-3">
           <p className="text-xs text-gray-500">
             Next 5 races — circuit type and driver fit scores (0–10). Green ≥ 7, amber ≥ 4, red &lt; 4.
+            Always shows the current season's upcoming races (the season toggle above doesn't apply here).
           </p>
           {fixturesLoading ? (
             <p className="text-gray-400 text-sm">Loading fixtures...</p>
