@@ -11,6 +11,7 @@ Covers the live-pipeline behaviours flagged in the audit (C1/C3):
 """
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 from backend.data import openf1_client
 
@@ -108,3 +109,52 @@ class TestBuildLiveSnapshot:
         snap = self._run(monkeypatch)
         # All stubbed fetchers succeed (no cache fallback) -> not stale.
         assert snap["stale"] is False
+
+
+class TestGetCurrentSession:
+    """
+    OpenF1's /sessions endpoint returns the whole season schedule (past + future),
+    not just what's happening now. get_current_session() must pick the session
+    whose [date_start, date_end] window actually contains the current time —
+    not just the last item in the list (a real bug: the last item is often a
+    future season-finale session, which made the site show "Live" months early).
+    """
+
+    def _patch_sessions(self, monkeypatch, sessions):
+        async def fake_get(path, params=None):
+            return sessions
+
+        monkeypatch.setattr(openf1_client, "_get", fake_get)
+
+    def test_returns_none_when_all_sessions_are_future(self, monkeypatch):
+        sessions = [
+            {"session_key": 1, "session_name": "Race",
+             "date_start": "2026-12-06T13:00:00+00:00", "date_end": "2026-12-06T15:00:00+00:00"},
+        ]
+        self._patch_sessions(monkeypatch, sessions)
+        assert asyncio.run(openf1_client.get_current_session()) is None
+
+    def test_returns_none_when_all_sessions_are_past(self, monkeypatch):
+        sessions = [
+            {"session_key": 1, "session_name": "Race",
+             "date_start": "2020-01-01T13:00:00+00:00", "date_end": "2020-01-01T15:00:00+00:00"},
+        ]
+        self._patch_sessions(monkeypatch, sessions)
+        assert asyncio.run(openf1_client.get_current_session()) is None
+
+    def test_returns_session_whose_window_contains_now(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+        start = (now - timedelta(minutes=30)).isoformat()
+        end = (now + timedelta(minutes=30)).isoformat()
+        sessions = [
+            {"session_key": 1, "session_name": "Practice 1",
+             "date_start": "2020-01-01T13:00:00+00:00", "date_end": "2020-01-01T15:00:00+00:00"},
+            {"session_key": 2, "session_name": "Race",
+             "date_start": start, "date_end": end},
+            {"session_key": 3, "session_name": "Race",
+             "date_start": "2026-12-06T13:00:00+00:00", "date_end": "2026-12-06T15:00:00+00:00"},
+        ]
+        self._patch_sessions(monkeypatch, sessions)
+        result = asyncio.run(openf1_client.get_current_session())
+        assert result is not None
+        assert result["session_key"] == 2

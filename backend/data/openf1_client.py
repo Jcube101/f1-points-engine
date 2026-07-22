@@ -14,6 +14,7 @@ Endpoints used:
 """
 
 import logging
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import httpx
@@ -64,17 +65,39 @@ async def _get(path: str, params: dict | None = None) -> Optional[list[dict]]:
         return _cache.get(cache_key)
 
 
+def _parse_iso(value: Optional[str]) -> Optional[datetime]:
+    """Parse an OpenF1 ISO-8601 timestamp into an aware UTC datetime, or None."""
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
 async def get_current_session() -> Optional[dict]:
     """
-    Fetch the most recent/current session from OpenF1.
+    Fetch the session that is currently live from OpenF1, if any.
+
+    OpenF1's /sessions endpoint returns the full season schedule (past, live, and
+    future), not just "the current one" — so the current session is whichever
+    session's [date_start, date_end] window contains right now, not simply the
+    last item in the response.
 
     Returns:
         Session dict with keys: session_key, session_type, date_start, date_end,
-        meeting_name, circuit_short_name. None if unavailable.
+        meeting_name, circuit_short_name. None if no session is live right now.
     """
     data = await _get("/sessions", {"date_start>": "2024-01-01"})
-    if data:
-        return data[-1]
+    if not data:
+        return None
+
+    now = datetime.now(timezone.utc)
+    for session in data:
+        start = _parse_iso(session.get("date_start"))
+        end = _parse_iso(session.get("date_end"))
+        if start and end and start <= now <= end:
+            return session
     return None
 
 
@@ -164,7 +187,6 @@ async def build_live_snapshot(
         Dict matching the WebSocket message format defined in SPEC.md.
         Sets stale=True if any underlying fetch came from cache due to API downtime.
     """
-    from datetime import datetime, timezone
     from backend.core.scoring import (
         race_position_points, qualifying_position_points,
         sprint_position_points, race_bonus_points, sprint_bonus_points,
