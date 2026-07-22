@@ -107,17 +107,11 @@ export default function Standings() {
             <p className="text-gray-400 text-sm">Loading standings...</p>
           ) : wdc.length === 0 ? (
             <div className="bg-gray-800 rounded-lg p-6 text-center border border-gray-700">
-              {season === 2026 ? (
-                <>
-                  <p className="text-gray-400">2026 season has not started yet</p>
-                  <p className="text-xs text-gray-600 mt-1">See the Fantasy Value tab for the 2025 points progression chart</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-gray-400">WDC standings unavailable (Ergast API offline)</p>
-                  <p className="text-xs text-gray-600 mt-1">See the Fantasy Value tab for the points progression chart</p>
-                </>
-              )}
+              <p className="text-gray-400">WDC standings unavailable right now</p>
+              <p className="text-xs text-gray-600 mt-1">
+                The standings provider may be temporarily down — try again shortly, or see the
+                Fantasy Value tab for the fantasy points progression chart.
+              </p>
             </div>
           ) : (
               /* WDC table — fixed column widths (consistent across seasons), horizontal scroll on mobile */
@@ -167,14 +161,8 @@ export default function Standings() {
             <p className="text-gray-400 text-sm">Loading...</p>
           ) : wcc.length === 0 ? (
             <div className="bg-gray-800 rounded-lg p-6 text-center border border-gray-700">
-              {season === 2026 ? (
-                <>
-                  <p className="text-gray-400">2026 season has not started yet</p>
-                  <p className="text-xs text-gray-600 mt-1">Switch to 2025 to view last year's championship</p>
-                </>
-              ) : (
-                <p className="text-gray-400">WCC standings unavailable (Ergast API offline)</p>
-              )}
+              <p className="text-gray-400">WCC standings unavailable right now</p>
+              <p className="text-xs text-gray-600 mt-1">The standings provider may be temporarily down — try again shortly.</p>
             </div>
           ) : (
             <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
@@ -259,7 +247,7 @@ export default function Standings() {
               <p className="text-xs text-gray-500 mb-3">
                 {season === 2025
                   ? 'Value score = xP ÷ price ($M) based on 2025 season performance. Higher is better.'
-                  : 'Value score = xP ÷ price ($M) based on 2025 history. Higher is better. No 2026 races yet.'}
+                  : 'Value score = xP ÷ price ($M) based on 2026 season performance so far. Higher is better.'}
               </p>
               <ValueRankings entries={valueData} />
             </div>

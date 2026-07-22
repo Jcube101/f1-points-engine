@@ -139,7 +139,7 @@ export default function TitleRace() {
         {standingsLoading ? (
           <p className="text-gray-400 text-sm">Loading standings…</p>
         ) : !standings || standings.length === 0 ? (
-          <p className="text-gray-400 text-sm">Season hasn't started yet — standings will appear after R1.</p>
+          <p className="text-gray-400 text-sm">Standings unavailable right now — the standings provider may be temporarily down. Try again shortly.</p>
         ) : (
           <>
             <ResponsiveContainer width="100%" height={200}>
