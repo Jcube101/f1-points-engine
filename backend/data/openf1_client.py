@@ -13,6 +13,7 @@ Endpoints used:
 - /starting_grid — grid positions for positions-gained calculation
 """
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -22,6 +23,45 @@ import httpx
 from backend.core.config import OPENF1_BASE_URL
 
 logger = logging.getLogger(__name__)
+
+# Scheduled race distance (in laps) per 2025/2026 meeting name. OpenF1's /sessions
+# endpoint does not expose a total_laps field, so build_live_snapshot would otherwise
+# always fall back to whatever lap number has been observed so far (0 before the
+# first /laps record lands) — showing "Lap 0 of 0" even mid-race. These are the
+# publicly scheduled race distances; a meeting not listed here (e.g. a new circuit)
+# falls back to the max observed lap number.
+SCHEDULED_RACE_LAPS: dict[str, int] = {
+    "Australian Grand Prix": 58,
+    "Chinese Grand Prix": 56,
+    "Japanese Grand Prix": 53,
+    "Miami Grand Prix": 57,
+    "Canadian Grand Prix": 70,
+    "Monaco Grand Prix": 78,
+    "Barcelona Grand Prix": 66,
+    "Spanish Grand Prix": 66,
+    "Austrian Grand Prix": 71,
+    "British Grand Prix": 52,
+    "Belgian Grand Prix": 44,
+    "Hungarian Grand Prix": 70,
+    "Dutch Grand Prix": 72,
+    "Italian Grand Prix": 53,
+    "Azerbaijan Grand Prix": 51,
+    "Singapore Grand Prix": 62,
+    "United States Grand Prix": 56,
+    "Mexico City Grand Prix": 71,
+    "Brazilian Grand Prix": 71,
+    "São Paulo Grand Prix": 71,
+    "Las Vegas Grand Prix": 50,
+    "Qatar Grand Prix": 57,
+    "Abu Dhabi Grand Prix": 58,
+}
+
+
+def get_scheduled_total_laps(meeting_name: Optional[str]) -> Optional[int]:
+    """Look up the scheduled race distance (in laps) for a meeting name, if known."""
+    if not meeting_name:
+        return None
+    return SCHEDULED_RACE_LAPS.get(meeting_name)
 
 # In-memory cache: last successfully fetched data per endpoint
 _cache: dict[str, Any] = {}
@@ -195,11 +235,16 @@ async def build_live_snapshot(
     # Reset stale tracking; any cache fallback during the fetches below flips it.
     _reset_cache_tracking()
 
-    positions = await get_driver_positions(session_key)
-    laps = await get_laps(session_key)
-    pit_stops = await get_pit_stops(session_key)  # noqa: F841 — reserved for constructor pit bonuses
-    drivers_meta = await get_drivers(session_key)
-    grid = await get_starting_grid(session_key)
+    # Fetch concurrently — sequential awaits stacked worst-case per-call timeouts
+    # (5 x 10s) into a single poll cycle, which during a live, high-traffic race
+    # session could stall a cycle long enough to look like a dropped connection.
+    positions, laps, pit_stops, drivers_meta, grid = await asyncio.gather(
+        get_driver_positions(session_key),
+        get_laps(session_key),
+        get_pit_stops(session_key),  # reserved for constructor pit bonuses
+        get_drivers(session_key),
+        get_starting_grid(session_key),
+    )
 
     # Map driver_number → metadata
     driver_map = {d["driver_number"]: d for d in drivers_meta}
