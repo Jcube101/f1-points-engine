@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from backend.data.openf1_client import get_current_session, build_live_snapshot
+from backend.data.openf1_client import get_current_session, build_live_snapshot, get_scheduled_total_laps
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,9 @@ async def poll_and_broadcast() -> None:
             logger.debug("Session type not a race session: %s", session_name)
             return  # Don't poll non-race sessions
 
-        total_laps = session.get("total_laps")
+        # OpenF1 sessions don't carry a total_laps field; fall back to the known
+        # scheduled race distance so the progress bar doesn't read "Lap N of 0".
+        total_laps = session.get("total_laps") or get_scheduled_total_laps(session.get("meeting_name"))
         snapshot = await build_live_snapshot(session_key, session_type, total_laps)
         await connection_manager.broadcast(snapshot)
 
