@@ -15,12 +15,6 @@ Everything a fantasy player needs to compete seriously.
 - All bonuses: positions gained/lost, overtakes, fastest lap, pit stops
 - Chip effects: DRS Boost (2×/3×), No Negative, Wildcard, Limitless, Autopilot, Final Fix
 
-**Live Race Tracker**
-- OpenF1 API integration (lap-by-lap position, pit stops, fastest lap)
-- WebSocket push to frontend every 30 seconds during sessions
-- Session-aware: auto-applies qualifying vs sprint vs race scoring rules
-- Live points table with delta indicators
-
 **Chip Advisor**
 - Rule-based recommendations (street circuit → No Negative, banked transfers → Wildcard, etc.)
 - Confidence rating + plain-English explanation
@@ -34,6 +28,13 @@ Everything a fantasy player needs to compete seriously.
 **Expected Points (xP)**
 - Rolling weighted average with circuit-type multiplier
 - Shown on all driver cards, used by optimizer
+
+> **Live Race Tracker — removed.** Originally shipped here: OpenF1 API integration polling
+> lap-by-lap position/pit stops/fastest lap, pushed to the frontend via WebSocket every 30s
+> during sessions, with a live points table. Removed after OpenF1 moved real-time/live
+> session data behind a paid subscription (OAuth2, ~€9.90/mo) — the free tier only covers
+> historical data, so the polling this depended on started returning 401 Unauthorized with
+> no viable free fix.
 
 **Data Integrity (resolved bug fixes)**
 - Arvid Lindblad (not Ayumu) — code LIN, Swedish, Racing Bulls
@@ -113,9 +114,8 @@ Makes the tool useful for every F1 fan, not just fantasy players. This is the di
 
 The app is optimised for use during live race weekends on a phone:
 
-- Bottom navigation bar on mobile (5 tabs: Home, Team, Live, Standings, Chips)
+- Bottom navigation bar on mobile (5 tabs: Home, Team, Standings, Title, Chips)
 - Team Builder: single-column cards, sticky footer with DRS pill row + budget bar + full-width Optimize button
-- Live Race Tracker: sticky session progress bar, tap-to-expand rows (code + pos + pts → full breakdown), accessible ▲/▼ delta indicators
 - Standings: horizontally scrollable championship chart, sticky first column on tables, top-5 default with "Show all" toggle
 - Chip Advisor: full-width recommendation card, prominent confidence badge, 52px action button
 - All tap targets ≥44px, minimum 14px body font, `overflow-x-hidden` root
@@ -134,4 +134,4 @@ Includes the deferred Phase 3 stretch goals (Scenario Builder, Championship Math
 
 ---
 
-*Roadmap version: 1.4 | Last updated: June 2026*
+*Roadmap version: 1.5 | Last updated: July 2026*
