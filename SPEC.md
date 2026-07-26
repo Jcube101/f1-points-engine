@@ -13,7 +13,7 @@
 
 **Name**: F1 Points Engine
 **Type**: Open source web application
-**Primary goal**: Help F1 fans win their fantasy leagues through data-driven team selection, live points tracking, and chip strategy advice — while also serving regular F1 fans with championship standings and a title odds simulator
+**Primary goal**: Help F1 fans win their fantasy leagues through data-driven team selection and chip strategy advice — while also serving regular F1 fans with championship standings and a title odds simulator
 **Target users**:
 - F1 Fantasy players who want to win their leagues
 - Regular F1 fans interested in championship standings and "what if" scenarios
@@ -32,24 +32,28 @@
 
 ### Backend
 - **Framework**: FastAPI (Python 3.11+)
-- **Scheduler**: APScheduler (poll OpenF1 during race weekends)
 - **Optimizer**: PuLP (linear programming for team optimization)
 - **HTTP client**: httpx (async)
 
 ### Database
 - **Primary**: SQLite via SQLAlchemy — zero setup, runs locally out of the box
-- **Cache**: In-memory (Python dict) for live race data
 
 ### Deployment
 - Docker + docker-compose for local dev
 - Production: self-hosted on a Raspberry Pi 5 (8GB) — FastAPI on port 8011 behind a Cloudflare Tunnel at https://f1.job-joseph.com, always-on with no cold starts
 - README also documents deployment to Railway, Render, and Fly.io as managed-platform alternatives
-- Scheduled maintenance uses a **systemd timer** (`f1-sync.service` + `f1-sync.timer`, Monday 00:30 UTC / 06:00 IST, `Persistent=true`) that runs `backend/scripts/sync_results.py` to ingest new race results post-weekend. APScheduler is reserved for the in-process live race poller (30s during sessions) only — not for scheduled maintenance.
+- Scheduled maintenance uses a **systemd timer** (`f1-sync.service` + `f1-sync.timer`, Monday 00:30 UTC / 06:00 IST, `Persistent=true`) that runs `backend/scripts/sync_results.py` to ingest new race results post-weekend.
 
 ### Data Sources
-- **Primary race data**: OpenF1 API (https://openf1.org) — free, no auth, real-time lap data
-- **Historical/schedule data**: Ergast API (http://ergast.com/mrd/)
+- **Race data**: Ergast/Jolpica API (http://ergast.com/mrd/) — calendar, historical results, standings
 - **All fantasy scoring is computed locally** using the rules engine in `backend/core/scoring.py`
+
+> **Removed**: this project originally also polled the OpenF1 API (https://openf1.org) for a
+> live, in-session fantasy points tracker (a WebSocket-driven "Live Race" page, formerly
+> its own feature section here). OpenF1 moved real-time/live session data behind a paid
+> subscription (OAuth2, ~€9.90/mo) — the free tier now only covers historical data — so the
+> live tracker was removed rather than left permanently broken. Historical race data
+> continues to come from Ergast/Jolpica only.
 
 ---
 
@@ -73,7 +77,6 @@ f1-points-engine/
 │   │       ├── team.py
 │   │       ├── points.py
 │   │       ├── chips.py
-│   │       ├── live.py
 │   │       └── standings.py     # F1 WDC + WCC standings
 │   ├── core/
 │   │   ├── scoring.py           # ALL fantasy scoring logic lives here
@@ -82,13 +85,10 @@ f1-points-engine/
 │   │   ├── expected_points.py   # xP: rolling avg points with circuit weighting
 │   │   └── config.py
 │   ├── data/
-│   │   ├── openf1_client.py
 │   │   ├── ergast_client.py
 │   │   └── models.py
-│   ├── db/
-│   │   └── database.py
-│   └── scheduler/
-│       └── live_poller.py       # Polls OpenF1 every 30s during race sessions
+│   └── db/
+│       └── database.py
 ├── frontend/
 │   ├── package.json
 │   ├── vite.config.ts
@@ -99,22 +99,19 @@ f1-points-engine/
 │       ├── pages/
 │       │   ├── Dashboard.tsx
 │       │   ├── TeamBuilder.tsx
-│       │   ├── LiveRace.tsx
 │       │   ├── Standings.tsx        # WDC + WCC + Fantasy value leaderboard
-│       │   ├── ChipAdvisor.tsx
-│       │   └── ScoreValidator.tsx   # Shows our score vs official score diff
+│       │   └── ChipAdvisor.tsx
 │       ├── components/
 │       │   ├── DriverCard.tsx
 │       │   ├── ConstructorCard.tsx
 │       │   ├── TeamSummary.tsx
 │       │   ├── PointsTable.tsx
 │       │   ├── ChipRecommendation.tsx
-│       │   ├── LiveTicker.tsx
 │       │   ├── ValueRankings.tsx    # Points per $M table
-│       │   └── Navbar.tsx
+│       │   ├── Navbar.tsx
+│       │   └── BottomNav.tsx
 │       ├── hooks/
 │       │   ├── useTeam.ts
-│       │   ├── useLiveRace.ts
 │       │   └── useOptimizer.ts
 │       └── lib/
 │           ├── api.ts
@@ -137,7 +134,7 @@ Use PuLP to solve two objectives, returned together from `POST /api/team/optimiz
 **Max Points Team**: Maximize projected fantasy points within $100M budget.
 **Best Value Team**: Rank all assets by `xP_per_million = expected_points / price`, greedily select within budget.
 
-Projected points = `xP` score from `expected_points.py` (see Feature 5).
+Projected points = `xP` score from `expected_points.py` (see Feature 4).
 
 ### UI (TeamBuilder.tsx)
 - Driver + constructor cards showing price, team, xP, value score — single column on mobile
@@ -218,59 +215,7 @@ Constructor bonuses: fastest pit stop +5, sub-2.0s pit +20, new pit record +15 a
 
 ---
 
-## Feature 3: Live Race Points Tracker
-
-### OpenF1 endpoints to use
-- `GET https://api.openf1.org/v1/sessions` — current/upcoming session
-- `GET https://api.openf1.org/v1/position` — lap-by-lap positions
-- `GET https://api.openf1.org/v1/laps` — fastest lap tracking
-- `GET https://api.openf1.org/v1/pit` — pit stop duration
-- `GET https://api.openf1.org/v1/drivers` — driver metadata
-
-### Polling (`backend/scheduler/live_poller.py`)
-- Poll every 30 seconds during active race sessions
-- No polling on non-race days
-- Detect session type from OpenF1 → apply correct scoring rules automatically
-- Push updates via WebSocket at `/ws/live`
-- Graceful degradation: if OpenF1 is unavailable, return last known state, do not crash
-
-### WebSocket message format
-```json
-{
-  "session_type": "race | qualifying | sprint",
-  "lap": 23,
-  "total_laps": 57,
-  "timestamp": "2026-03-08T14:32:00Z",
-  "drivers": [
-    {
-      "driver_id": "VER",
-      "name": "Max Verstappen",
-      "position": 1,
-      "fantasy_points": 31,
-      "breakdown": {
-        "race_position_points": 25,
-        "positions_gained": 2,
-        "overtakes": 3,
-        "fastest_lap": false,
-        "drs_boost_applied": false
-      }
-    }
-  ],
-  "constructors": []
-}
-```
-
-### UI (LiveRace.tsx)
-- Ranked table of all drivers + constructors with live fantasy points
-- Mobile condensed view: driver code (3 letters) + position + fantasy points; tap row to expand full breakdown
-- Highlight user's selected team (stored in localStorage)
-- Session progress bar — sticky at top of screen (Lap X of Y, or Q1/Q2/Q3 indicator)
-- Delta indicators: ▲/▼ + colour for accessibility (not colour alone)
-- Auto-updates via WebSocket, no manual refresh needed
-
----
-
-## Feature 4: Chip Advisor
+## Feature 3: Chip Advisor
 
 ### `backend/core/chip_advisor.py` — rule-based, priority ordered
 
@@ -290,7 +235,7 @@ Response must include: recommended chip, confidence (Low/Medium/High), plain-Eng
 
 ---
 
-## Feature 5: Expected Points (xP)
+## Feature 4: Expected Points (xP)
 
 ### `backend/core/expected_points.py`
 
@@ -309,7 +254,7 @@ xP is shown on every driver card and used as the optimizer's projected score. It
 
 ---
 
-## Feature 6: Standings (WDC + WCC + Fantasy Value)
+## Feature 5: Standings (WDC + WCC + Fantasy Value)
 
 ### `backend/api/routes/standings.py`
 
@@ -354,9 +299,7 @@ FantasyPoints: id, race_id, driver_id, qualifying_pts, sprint_pts, race_pts, tot
 | GET | /api/standings/progression | Cumulative fantasy pts per driver per round (DB-sourced, all 24 rounds) |
 | GET | /api/standings/value | Fantasy value leaderboard (xP per $M) |
 | POST | /api/simulator/title-odds | Monte Carlo title-odds simulation (real WDC baseline) |
-| GET | /api/live/status | Is a session currently live? |
 | GET | /api/sync/status | Post-race sync status (last_sync, rounds_in_db, next_round, status) |
-| WS | /ws/live | WebSocket: live race point updates |
 
 All responses: `{ success: bool, data: any, error?: string }`
 
@@ -383,7 +326,7 @@ The repo must include a `CLAUDE.md` at root. See separate CLAUDE.md file.
 ## README Requirements
 
 1. What this is (one paragraph)
-2. Features: team optimizer, live tracker, chip advisor, standings
+2. Features: team optimizer, chip advisor, standings
 3. Screenshot placeholder
 4. Quickstart: `docker-compose up` → open localhost:5173
 5. Manual setup: backend + frontend separately
@@ -404,7 +347,6 @@ The repo must include a `CLAUDE.md` at root. See separate CLAUDE.md file.
 - All scoring logic in `backend/core/scoring.py` only
 - Write docstrings on all scoring + xP functions
 - Provide working seed data so app is usable immediately after setup
-- WebSocket must degrade gracefully if OpenF1 is down
 - Never inline scoring math in route handlers
 
 ## Mobile Requirements (Phase 1 complete)
@@ -414,7 +356,6 @@ The repo must include a `CLAUDE.md` at root. See separate CLAUDE.md file.
 - All tap targets minimum 44×44px; minimum 14px body font; no horizontal overflow
 - `overflow-x-hidden` on root; `-webkit-tap-highlight-color: transparent`
 - Team Builder: single-column cards, sticky footer with DRS pills + budget bar + optimize button
-- Live Race: sticky session progress bar, tap-to-expand rows, ▲/▼ delta text for accessibility
 - Standings: chart in `overflow-x-auto` wrapper with `min-w-[480px]`, sticky first table column
 - Chip Advisor: full-width on mobile (`md:grid-cols-2` collapses to 1 col), 52px minimum action button, prominent confidence badge
 
@@ -425,10 +366,9 @@ The repo must include a `CLAUDE.md` at root. See separate CLAUDE.md file.
 A first-time reviewer should be able to:
 1. Run `docker-compose up` and have the app working in under 2 minutes
 2. See a team builder with real driver names, prices, and a working optimizer
-3. Click "Live Race" during a race weekend and see live fantasy points
-4. Get a chip recommendation with a plain-English reason
-5. See WDC and WCC standings with a points progression chart
-6. Read the README and understand the project in under 5 minutes
+3. Get a chip recommendation with a plain-English reason
+4. See WDC and WCC standings with a points progression chart
+5. Read the README and understand the project in under 5 minutes
 
 ---
 
@@ -454,4 +394,4 @@ All responses: `{ success: bool, data: any, error?: string }`
 
 ---
 
-*Spec version: 2.1 | Project: f1-points-engine | Season: F1 2026*
+*Spec version: 2.2 | Project: f1-points-engine | Season: F1 2026*
