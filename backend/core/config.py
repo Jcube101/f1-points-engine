@@ -1,6 +1,5 @@
 """Configuration constants for F1 Points Engine."""
 
-OPENF1_BASE_URL = "https://api.openf1.org/v1"
 F1_FANTASY_BASE_URL = "https://fantasy.formula1.com/feeds"
 
 CURRENT_SEASON = 2026

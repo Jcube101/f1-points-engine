@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom'
 const links = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/team', label: 'Team Builder' },
-  { to: '/live', label: 'Live Race' },
   { to: '/standings', label: 'Standings' },
   { to: '/chips', label: 'Chip Advisor' },
   { to: '/title-race', label: 'Title Race' },

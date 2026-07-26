@@ -23,17 +23,6 @@ const tabs = [
     ),
   },
   {
-    to: '/live',
-    label: 'Live',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-        <circle cx="12" cy="12" r="2" />
-        <path strokeLinecap="round" d="M8.5 8.5a5 5 0 000 7M15.5 8.5a5 5 0 010 7" />
-        <path strokeLinecap="round" d="M5.5 5.5a9 9 0 000 13M18.5 5.5a9 9 0 010 13" />
-      </svg>
-    ),
-  },
-  {
     to: '/standings',
     label: 'Standings',
     icon: (

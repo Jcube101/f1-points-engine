@@ -205,31 +205,6 @@ export interface ValueLeaderboardEntry {
   price_trend: number
 }
 
-export interface LiveDriver {
-  driver_number: number
-  driver_id: string
-  name: string
-  position: number | null
-  fantasy_points: number
-  breakdown: {
-    race_position_points: number
-    positions_gained: number
-    overtakes: number
-    fastest_lap: boolean
-    drs_boost_applied: boolean
-  }
-}
-
-export interface LiveSnapshot {
-  session_type: string
-  lap: number
-  total_laps: number
-  timestamp: string
-  stale: boolean
-  drivers: LiveDriver[]
-  constructors: unknown[]
-}
-
 /** One round's entry in the championship points progression chart. */
 export interface ProgressionRound {
   round: number

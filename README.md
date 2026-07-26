@@ -1,6 +1,6 @@
 # F1 Points Engine
 
-F1 Points Engine is an open-source fantasy F1 tool that helps you win your fantasy league through data-driven team selection, live race tracking, and chip strategy advice. It implements the full F1 Fantasy scoring ruleset locally, computes Expected Points (xP) per driver using a rolling weighted average with circuit-type multipliers, runs linear programming to optimise your team within the $100M budget cap — and now includes a full Phase 2 Intelligence Layer with circuit fit scores, form analysis, differential picks, teammate comparison, and a 3-race transfer planner.
+F1 Points Engine is an open-source fantasy F1 tool that helps you win your fantasy league through data-driven team selection and chip strategy advice. It implements the full F1 Fantasy scoring ruleset locally, computes Expected Points (xP) per driver using a rolling weighted average with circuit-type multipliers, runs linear programming to optimise your team within the $100M budget cap — and now includes a full Phase 2 Intelligence Layer with circuit fit scores, form analysis, differential picks, teammate comparison, and a 3-race transfer planner.
 
 ---
 
@@ -11,7 +11,6 @@ F1 Points Engine is an open-source fantasy F1 tool that helps you win your fanta
 | Feature | What it does |
 |---|---|
 | **Team Optimizer** | Picks the mathematically best 5-driver + 2-constructor team within budget using PuLP ILP (Max Points mode) or value-weighted greedy (Best Value mode) |
-| **Live Race Tracker** | Streams real-time fantasy points from OpenF1 every 30 seconds via WebSocket — your team highlighted, fastest lap indicator, positions gained. Tap any row for full points breakdown |
 | **Chip Advisor** | Rule-based chip recommendations (street circuit → No Negative, banked transfers → Wildcard) with confidence rating and plain-English explanation |
 | **Standings** | F1 WDC + WCC standings with 2025/2026 season toggle; scrollable fantasy points progression chart; fantasy value leaderboard ranked by xP per $M |
 | **Expected Points (xP)** | Rolling weighted average (50/30/20%) × circuit-type multiplier × teammate gap factor — shown on every driver card and used by the optimizer |
@@ -153,7 +152,6 @@ Weights: 50% most recent, 30% previous, 20% oldest. Circuit types: `street` / `p
 | GET | `/api/standings/value?season=` | Fantasy value leaderboard |
 | GET | `/api/standings/progression?season=` | Cumulative fantasy points per driver per round |
 | GET | `/api/sync/status` | Post-race sync status: `last_sync`, `last_round_synced`, `rounds_in_db`, `next_round`, `status` (`up_to_date`/`behind`/`no_data`) |
-| WS | `/ws/live` | Real-time race fantasy point updates (every 30s) |
 
 ### Phase 2 — Intelligence Layer
 
@@ -209,7 +207,7 @@ driver_circuit_profiles: 72
 ```
 f1-points-engine/
 ├── backend/
-│   ├── main.py                    # FastAPI app, WebSocket, static file serving
+│   ├── main.py                    # FastAPI app, static file serving
 │   ├── seed.py                    # DB seeder — idempotent, safe to re-run
 │   ├── requirements.txt
 │   ├── core/
@@ -220,7 +218,6 @@ f1-points-engine/
 │   │   └── config.py              # CURRENT_SEASON, scoring tables, budget cap
 │   ├── data/
 │   │   ├── models.py              # SQLAlchemy ORM models (all DB tables)
-│   │   ├── openf1_client.py       # Live race data (OpenF1 API)
 │   │   └── ergast_client.py       # Calendar + historical results (Ergast/Jolpica)
 │   ├── api/routes/
 │   │   ├── drivers.py             # /api/drivers — includes Phase 2 form + circuit fit
@@ -235,8 +232,6 @@ f1-points-engine/
 │   │   └── sync.py                # /api/sync/status (post-race sync state)
 │   ├── db/
 │   │   └── database.py            # SQLAlchemy engine + session + init_db()
-│   ├── scheduler/
-│   │   └── live_poller.py         # APScheduler: polls OpenF1 every 30s (live only)
 │   ├── scripts/
 │   │   └── sync_results.py        # Standalone post-race sync (systemd timer, not FastAPI)
 │   └── tests/                     # Pytest test suite (202 tests)
@@ -252,7 +247,6 @@ f1-points-engine/
 │       ├── test_api_transfers.py
 │       ├── test_api_points.py     # /api/points/calculate
 │       ├── test_api_simulator.py  # /api/simulator/title-odds (WDC baseline mocked)
-│       ├── test_openf1_client.py  # build_live_snapshot (OpenF1 mocked)
 │       └── test_sync.py           # post-race sync (Jolpica mocked)
 ├── frontend/
 │   └── src/
@@ -269,11 +263,9 @@ f1-points-engine/
 │       │   ├── ConstructorCard.tsx # Compare Teammates button
 │       │   ├── TeammateModal.tsx  # Bottom-sheet comparison modal (Phase 2)
 │       │   ├── TeamSummary.tsx
-│       │   ├── BottomNav.tsx
-│       │   └── LiveTicker.tsx
+│       │   └── BottomNav.tsx
 │       ├── hooks/
 │       │   ├── useTeam.ts         # Zustand — selected drivers/constructors
-│       │   ├── useLiveRace.ts     # WebSocket live points
 │       │   └── useOptimizer.ts    # Team optimizer call
 │       └── lib/
 │           ├── types.ts           # All shared TypeScript interfaces
@@ -376,9 +368,6 @@ production Raspberry Pi this is automated with a **systemd timer** that runs a
 standalone sync script — it ingests any newly completed rounds from Jolpica,
 scores them through the same engine as the seed, recomputes xP + circuit
 profiles, and records a `SyncLog` row.
-
-The live race poller (`live_poller.py`, APScheduler, 30s during sessions) is
-unrelated and stays as-is — only this scheduled post-race maintenance uses systemd.
 
 ### How it works
 - `backend/scripts/sync_results.py` — standalone (does **not** import FastAPI).

@@ -105,13 +105,6 @@ export async function fetchProgression(season = 2026): Promise<ProgressionRound[
   return res.data.data
 }
 
-// ─── Live ────────────────────────────────────────────────────────────────────
-
-export async function fetchLiveStatus(): Promise<{ is_live: boolean; session_type: string | null; session_key?: number }> {
-  const res = await http.get<ApiResponse<{ is_live: boolean; session_type: string | null }>>('/live/status')
-  return res.data.data
-}
-
 // ─── Phase 2: Intelligence Layer ─────────────────────────────────────────────
 
 export async function fetchDriverForm(driverId: number): Promise<DriverForm> {
