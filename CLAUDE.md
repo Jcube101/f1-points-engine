@@ -10,7 +10,7 @@
 
 F1 Points Engine is an open source web app that helps F1 fans win their fantasy leagues and understand championship battles. It has three main audiences:
 
-1. **Fantasy players** — team optimizer, live race points tracker, chip strategy advisor
+1. **Fantasy players** — team optimizer, chip strategy advisor
 2. **F1 fans** — WDC/WCC standings with a championship simulator (Phase 3)
 3. **Developers** — clean, well-documented codebase designed to be learned from
 
@@ -36,9 +36,7 @@ Season Replay remain future work — do not build those unless explicitly instru
 | Backend | FastAPI (Python 3.11+) |
 | Database | SQLite via SQLAlchemy |
 | Optimizer | PuLP |
-| Scheduler | APScheduler |
 | HTTP client | httpx (async) |
-| Real-time | WebSocket via FastAPI |
 | Deployment | Raspberry Pi 5 8GB — FastAPI on port 8011 + Cloudflare Tunnel (production, always-on). Railway config retained as a dev/alt option |
 
 ---
@@ -84,9 +82,7 @@ backend/core/optimizer.py        ← PuLP team optimizer (max points + best valu
 backend/core/chip_advisor.py     ← Rule-based chip recommendations
 backend/core/expected_points.py  ← xP calculation (rolling avg + circuit weighting)
 backend/core/config.py           ← CURRENT_SEASON, scoring tables, budget cap
-backend/data/openf1_client.py    ← OpenF1 API wrapper (live race data)
 backend/data/ergast_client.py    ← Ergast/Jolpica API wrapper (historical + calendar)
-backend/scheduler/live_poller.py  ← Polls OpenF1 every 30s during race sessions (APScheduler)
 backend/scripts/sync_results.py  ← Standalone post-race sync (systemd timer, NOT FastAPI):
                                     ingests new completed rounds from Jolpica, scores via
                                     seed.store_2026_round, recomputes xP + circuit profiles
@@ -96,9 +92,8 @@ backend/seed.py                  ← One-time DB seeding: 2026 drivers/construct
                                     xP scores, circuit profiles. Run: python backend/seed.py
 backend/api/routes/transfers.py  ← Phase 2: Transfer Planner endpoint
 frontend/src/pages/              ← One file per page/route
-frontend/src/components/         ← Reusable UI components (incl. BottomNav, LiveTicker,
-                                    TeammateModal)
-frontend/src/hooks/              ← useTeam (Zustand), useLiveRace (WS), useOptimizer
+frontend/src/components/         ← Reusable UI components (incl. BottomNav, TeammateModal)
+frontend/src/hooks/              ← useTeam (Zustand), useOptimizer
 frontend/src/lib/types.ts        ← All shared TypeScript types defined here
 frontend/src/lib/api.ts          ← All backend API calls (fetchDrivers, fetchWDC, etc.)
 frontend/tailwind.config.ts      ← xs breakpoint (390px), scrollbar-none utility
@@ -119,7 +114,6 @@ frontend/tailwind.config.ts      ← xs breakpoint (390px), scrollbar-none utili
 - Python 3.11+
 - Use `httpx` for all async HTTP calls (not `requests`)
 - Use `async/await` throughout FastAPI routes
-- Handle OpenF1 API downtime gracefully: return last known state, log warning, never crash
 - `scoring.py` functions should be pure (no DB calls, no side effects)
 
 ### TypeScript / Frontend
@@ -160,8 +154,13 @@ frontend/tailwind.config.ts      ← xs breakpoint (390px), scrollbar-none utili
 
 | Source | Used For | Auth |
 |--------|----------|------|
-| OpenF1 API (openf1.org) | Live race data: positions, laps, pit stops | None required |
 | Ergast API (ergast.com/mrd) | Calendar, historical results, standings | None required |
+
+> **Removed:** the Live Race tracker (OpenF1 API + `/ws/live` WebSocket) was removed —
+> OpenF1 moved real-time/live session data behind a paid subscription (OAuth2, ~€9.90/mo),
+> so the free-tier live polling this feature depended on no longer works. OpenF1's
+> historical data (used nowhere in this app) remains free; only the live-session
+> endpoints require the paid tier.
 
 ---
 
@@ -196,16 +195,6 @@ xP is shown on driver cards and used as the optimizer's projected score input.
 
 ---
 
-## WebSocket Behaviour
-
-- Endpoint: `ws://localhost:8000/ws/live`
-- Active only during race sessions (qualifying, sprint, race)
-- Pushes updates every 30 seconds with full driver/constructor fantasy points breakdown
-- If OpenF1 is unreachable: push last known state with `"stale": true` flag
-- Session type is auto-detected from OpenF1 session data
-
----
-
 ## Adding New Features
 
 1. Check `ROADMAP.md` — is it in Phase 2 or later? Don't build ahead of schedule.
@@ -227,7 +216,7 @@ xP is shown on driver cards and used as the optimizer's projected score input.
 
 ### Railway (alternative / dev)
 `railway.toml` + root `Dockerfile` — single service. FastAPI serves the built React app
-as static files (`frontend/dist/`) from `/`, API from `/api/*`, WebSocket at `/ws/live`.
+as static files (`frontend/dist/`) from `/`, API from `/api/*`.
 
 ```bash
 # Simulate Railway build locally:
@@ -286,7 +275,7 @@ curl "http://localhost:8000/api/transfers/plan?drivers=VER,NOR" | python3 -c "im
 ```bash
 cd backend && pytest
 ```
-Expect **202 passing**, 0 failures (`pytest` / `pytest-asyncio` are in `requirements.txt`).
+Expect **194 passing**, 0 failures (`pytest` / `pytest-asyncio` are in `requirements.txt`).
 
 **Sync new race results (post-race)**
 ```bash
@@ -299,9 +288,8 @@ On the Pi this runs automatically via the `f1-sync` systemd timer (Monday 06:00 
 See the README "Post-race sync" section for install + `journalctl -u f1-sync` logs.
 Sync status is exposed at `GET /api/sync/status`.
 
-> **Scheduling note:** APScheduler is used **only** by `live_poller.py` for the
-> 30-second OpenF1 poll during live sessions. Scheduled maintenance (the post-race
-> result sync) runs as a **systemd timer**, not via APScheduler.
+> **Scheduling note:** scheduled maintenance (the post-race result sync) runs as a
+> **systemd timer**, not via an in-process scheduler.
 
 ---
 
@@ -338,4 +326,4 @@ Sync status is exposed at `GET /api/sync/status`.
 
 ---
 
-*CLAUDE.md version: 1.4 | Project: f1-points-engine | Season: F1 2026*
+*CLAUDE.md version: 1.5 | Project: f1-points-engine | Season: F1 2026*

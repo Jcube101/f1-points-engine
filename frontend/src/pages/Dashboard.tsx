@@ -1,15 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { fetchDrivers, fetchRaces, fetchLiveStatus } from '../lib/api'
+import { fetchDrivers, fetchRaces } from '../lib/api'
 
 export default function Dashboard() {
   const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: fetchDrivers })
   const { data: races = [] } = useQuery({ queryKey: ['races'], queryFn: () => fetchRaces(2026) })
-  const { data: liveStatus } = useQuery({
-    queryKey: ['liveStatus'],
-    queryFn: fetchLiveStatus,
-    refetchInterval: 30_000,
-  })
 
   const topDrivers = [...drivers].sort((a, b) => b.xp - a.xp).slice(0, 5)
   const today = new Date()
@@ -25,12 +20,6 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        {liveStatus?.is_live && (
-          <span className="flex items-center gap-2 text-red-400 text-sm font-medium">
-            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            Live: {liveStatus.session_type}
-          </span>
-        )}
       </div>
 
       {/* Stats row */}
@@ -108,7 +97,6 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
           { to: '/team', title: 'Team Builder', desc: 'Pick your 5 drivers + 2 constructors and optimise' },
-          { to: '/live', title: 'Live Race', desc: 'Real-time fantasy points during race weekends' },
           { to: '/chips', title: 'Chip Advisor', desc: 'Get a data-driven chip recommendation' },
         ].map((card) => (
           <Link
