@@ -1,0 +1,13 @@
+[Unit]
+Description=F1 Points Engine — post-race sync drift check (detect + auto-fix)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=jcube
+WorkingDirectory=/home/jcube/projects/f1-points-engine
+ExecStart=/home/jcube/projects/f1-points-engine/.venv/bin/python backend/scripts/check_sync_drift.py --fix
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=f1-sync-drift

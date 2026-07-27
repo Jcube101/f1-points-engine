@@ -86,6 +86,18 @@ def db():
         session.close()
 
 
+def _r1_unchanged_row():
+    """Mirrors the R1 RaceResult already seeded by the `db` fixture exactly, so
+    a recheck fetch against it is a no-op (not a false-positive amendment)."""
+    return {
+        "code": "VER", "constructor_cid": "red_bull",
+        "quali_pos": 1, "q2_reached": False, "q3_reached": False,
+        "race_pos": 1, "dnf": False, "dsq": False, "grid": 1,
+        "positions_gained_race": 0, "overtakes": 0, "fastest_lap": False,
+        "sprint_pos": None, "sprint_dnf": False, "data_source": "jolpica",
+    }
+
+
 def _patch_jolpica(monkeypatch, latest_round, round_rows):
     async def fake_latest_round(season):
         return latest_round  # standings 'round' = latest completed round
@@ -104,7 +116,8 @@ class TestRunSync:
             _row("VER", "red_bull", quali=2, race=2, grid=2),
             _row("NOR", "mclaren", quali=1, race=1, grid=1, fastest_lap=True),
         ]
-        _patch_jolpica(monkeypatch, latest_round=2, round_rows={2: round2_rows})
+        _patch_jolpica(monkeypatch, latest_round=2,
+                       round_rows={1: [_r1_unchanged_row()], 2: round2_rows})
 
         summary = asyncio.run(sync_results.run_sync(db, dry_run=False))
 
@@ -113,6 +126,7 @@ class TestRunSync:
         assert summary["already_synced"] == [1]
         assert summary["new_rounds"] == [2]          # R1 skipped, R3 not completed
         assert summary["synced_rounds"] == [2]
+        assert summary["amended_rounds"] == []       # R1 recheck found no change
         assert summary["drivers_updated"] == 2
 
         # R2 now has both drivers stored as jolpica…
@@ -136,12 +150,39 @@ class TestRunSync:
         assert db.query(RaceResult).count() == before
 
     def test_up_to_date_when_no_new_rounds(self, db, monkeypatch):
-        # Only R1 completed, and R1 is already synced → nothing to do.
-        _patch_jolpica(monkeypatch, latest_round=1, round_rows={})
+        # Only R1 completed, and R1 is already synced → nothing new, but it's
+        # still within the recheck window so it gets re-verified (no-op).
+        _patch_jolpica(monkeypatch, latest_round=1, round_rows={1: [_r1_unchanged_row()]})
         summary = asyncio.run(sync_results.run_sync(db, dry_run=False))
         assert summary["new_rounds"] == []
         assert summary["synced_rounds"] == []
+        assert summary["recheck_rounds"] == [1]
+        assert summary["amended_rounds"] == []
         assert summary["success"] is True
+
+    def test_amended_round_is_detected_and_replaced(self, db, monkeypatch):
+        # R1 was originally synced as VER P1. A later FIA decision (e.g. a
+        # steward penalty) demotes VER to P2 — simulate that as a changed
+        # fresh fetch and confirm the recheck catches and applies it.
+        amended_row = {
+            "code": "VER", "constructor_cid": "red_bull",
+            "quali_pos": 1, "q2_reached": True, "q3_reached": True,
+            "race_pos": 2, "dnf": False, "dsq": False, "grid": 1,
+            "positions_gained_race": -1, "overtakes": 0, "fastest_lap": False,
+            "sprint_pos": None, "sprint_dnf": False, "data_source": "jolpica",
+        }
+        _patch_jolpica(monkeypatch, latest_round=1, round_rows={1: [amended_row]})
+
+        summary = asyncio.run(sync_results.run_sync(db, dry_run=False))
+
+        assert summary["success"] is True
+        assert summary["recheck_rounds"] == [1]
+        assert summary["amended_rounds"] == [1]
+        assert summary["drivers_updated"] == 1
+
+        r1 = db.query(RaceResult).filter_by(race_id=1, driver_id=1).one()
+        assert r1.race_pos == 2                      # updated from the amended fetch
+        assert db.query(RaceResult).filter_by(race_id=1).count() == 1  # no duplicate row
 
     def test_api_unreachable_is_failure(self, db, monkeypatch):
         # Empty season results = API unreachable → must report failure for systemd.

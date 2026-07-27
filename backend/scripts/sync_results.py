@@ -12,10 +12,14 @@ can also be run by hand:
 Behaviour:
 - Connects to the app DB (backend.db.database.SessionLocal).
 - Asks Jolpica which rounds of the current season are completed.
-- Skips any round already stored with data_source in ('jolpica', 'real').
 - For each NEW completed round: fetches quali + race (+ sprint) from Jolpica and
   stores RaceResult + FantasyPoints via the SAME pipeline as seed.py
   (backend.seed.store_2026_round → backend.core.scoring).
+- Also RE-fetches the last RECHECK_WINDOW already-synced rounds every run, to
+  catch a post-race FIA amendment (steward penalty, a DSQ overturned on appeal,
+  a reinstated position) landing after a round was first synced. store_2026_round
+  only replaces a round's stored data if the fresh fetch actually differs, so an
+  unamended recheck is a no-op.
 - Recomputes xP scores and rebuilds DriverCircuitProfile (idempotent, per L-010).
 - Records a SyncLog row and exits 0 on success, 1 on any failure (so systemd can
   detect failures via the unit's exit status).
@@ -38,26 +42,39 @@ from backend.data.ergast_client import get_latest_completed_round
 from backend.data.models import Race, RaceResult, Driver, SyncLog
 from backend.seed import (
     _fetch_2026_round, store_2026_round, compute_xp_scores,
-    seed_circuit_profiles, _ROUND_NAME_2026,
+    seed_circuit_profiles, _ROUND_NAME_2026, REAL_DATA_SOURCES,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 logger = logging.getLogger("sync_results")
 
-# Result rows already produced from real data are never re-synced.
-REAL_DATA_SOURCES = ("jolpica", "real")
+# How many of the most-recently-synced rounds to re-fetch and diff on every run,
+# to catch a late FIA amendment (steward penalty, DSQ overturned on appeal, a
+# reinstated position) that lands after a round was first marked synced.
+RECHECK_WINDOW = 3
 
 
-async def _completed_rounds(season: int) -> list[int]:
+async def _completed_rounds(season: int, retries: int = 3, delay: float = 5.0) -> list[int]:
     """Return the round numbers Jolpica reports as completed (1..latest).
 
     Uses the standings 'round' (latest scored race) rather than the season-wide
     /results endpoint, which is paginated and can omit later rounds.
+
+    Retries on empty response to tolerate DNS not yet being up moments after
+    boot despite network-online.target ordering (network-online.target only
+    guarantees an interface is up, not that the resolver has settled).
     """
-    latest = await get_latest_completed_round(season)
-    if not latest or latest < 1:
-        return []
-    return list(range(1, latest + 1))
+    for attempt in range(1, retries + 1):
+        latest = await get_latest_completed_round(season)
+        if latest and latest >= 1:
+            return list(range(1, latest + 1))
+        if attempt < retries:
+            logger.warning(
+                "Jolpica unreachable (attempt %d/%d) — retrying in %.0fs",
+                attempt, retries, delay,
+            )
+            await asyncio.sleep(delay)
+    return []
 
 
 def _synced_rounds(db: Session, season: int) -> set[int]:
@@ -77,8 +94,8 @@ async def run_sync(db: Session, dry_run: bool = False) -> dict:
     """Core sync routine. Returns a summary dict; never calls sys.exit / never writes SyncLog.
 
     summary = {
-        season, completed_rounds, already_synced, new_rounds,
-        synced_rounds, drivers_updated, errors, success
+        season, completed_rounds, already_synced, new_rounds, recheck_rounds,
+        synced_rounds, amended_rounds, drivers_updated, errors, success
     }
     """
     season = CURRENT_SEASON
@@ -91,18 +108,23 @@ async def run_sync(db: Session, dry_run: bool = False) -> dict:
         errors.append(f"No completed rounds returned by Jolpica for {season} (API unreachable?)")
         return {
             "season": season, "completed_rounds": [], "already_synced": [],
-            "new_rounds": [], "synced_rounds": [], "drivers_updated": 0,
+            "new_rounds": [], "recheck_rounds": [], "synced_rounds": [],
+            "amended_rounds": [], "drivers_updated": 0,
             "errors": errors, "success": False,
         }
 
     already = _synced_rounds(db, season)
     new_rounds = [r for r in completed if r not in already]
+    # Re-verify the most recent already-synced rounds too, in case a post-race
+    # FIA decision amended one after it was first synced.
+    recheck_rounds = sorted(already)[-RECHECK_WINDOW:]
 
     if dry_run:
         return {
             "season": season, "completed_rounds": completed,
             "already_synced": sorted(already), "new_rounds": new_rounds,
-            "synced_rounds": [], "drivers_updated": 0, "errors": errors, "success": True,
+            "recheck_rounds": recheck_rounds, "synced_rounds": [], "amended_rounds": [],
+            "drivers_updated": 0, "errors": errors, "success": True,
         }
 
     driver_code_map = {d.code: d.id for d in db.query(Driver).all()}
@@ -111,8 +133,10 @@ async def run_sync(db: Session, dry_run: bool = False) -> dict:
     }
 
     synced: list[int] = []
+    amended: list[int] = []
     drivers_updated = 0
-    for rnd in new_rounds:
+    for rnd in new_rounds + recheck_rounds:
+        is_recheck = rnd in recheck_rounds
         race_id = race_round_map.get(rnd)
         if not race_id:
             errors.append(f"R{rnd}: no race row in DB (calendar out of date?) — skipped")
@@ -124,25 +148,32 @@ async def run_sync(db: Session, dry_run: bool = False) -> dict:
                 continue
             inserted = store_2026_round(db, race_id, rows, driver_code_map)
             db.commit()
-            synced.append(rnd)
             drivers_updated += inserted
-            logger.info("Synced R%d (%s): %d driver rows [%s]", rnd,
-                        _ROUND_NAME_2026.get(rnd, "?"), inserted, rows[0]["data_source"])
+            if is_recheck:
+                if inserted:
+                    amended.append(rnd)
+                    logger.warning("R%d (%s) AMENDED: %d driver rows changed since last sync [%s]",
+                                   rnd, _ROUND_NAME_2026.get(rnd, "?"), inserted, rows[0]["data_source"])
+            else:
+                synced.append(rnd)
+                logger.info("Synced R%d (%s): %d driver rows [%s]", rnd,
+                            _ROUND_NAME_2026.get(rnd, "?"), inserted, rows[0]["data_source"])
         except Exception as exc:  # noqa: BLE001 — one bad round shouldn't abort the rest
             db.rollback()
             errors.append(f"R{rnd}: {exc}")
-            logger.exception("Failed to sync R%d", rnd)
+            logger.exception("Failed to %s R%d", "recheck" if is_recheck else "sync", rnd)
 
     # Recompute derived data only if something changed (L-010: profiles depend on
     # FantasyPoints, so rebuild after results are committed).
-    if synced:
+    if synced or amended:
         compute_xp_scores(db)
         seed_circuit_profiles(db)
 
     return {
         "season": season, "completed_rounds": completed,
         "already_synced": sorted(already), "new_rounds": new_rounds,
-        "synced_rounds": synced, "drivers_updated": drivers_updated,
+        "recheck_rounds": recheck_rounds, "synced_rounds": synced, "amended_rounds": amended,
+        "drivers_updated": drivers_updated,
         "errors": errors, "success": not errors,
     }
 
@@ -155,8 +186,11 @@ def _print_summary(summary: dict, dry_run: bool) -> None:
     print(f"  Already in DB:              {summary['already_synced']}")
     if dry_run:
         print(f"  Would sync:                {summary['new_rounds'] or '(nothing — up to date)'}")
+        print(f"  Would recheck:             {summary['recheck_rounds'] or '(none)'}")
     else:
         print(f"  Newly synced rounds:       {summary['synced_rounds'] or '(none)'}")
+        print(f"  Rechecked rounds:          {summary['recheck_rounds'] or '(none)'}")
+        print(f"  Amended rounds:            {summary['amended_rounds'] or '(none — no changes found)'}")
         print(f"  Driver rows updated:       {summary['drivers_updated']}")
     if summary["errors"]:
         print(f"  ERRORS ({len(summary['errors'])}):")
@@ -177,7 +211,8 @@ def main() -> int:
     try:
         summary = asyncio.run(run_sync(db, dry_run=args.dry_run))
         if not args.dry_run:
-            db.add(SyncLog(rounds_synced=len(summary["synced_rounds"]), success=summary["success"]))
+            rounds_touched = len(summary["synced_rounds"]) + len(summary["amended_rounds"])
+            db.add(SyncLog(rounds_synced=rounds_touched, success=summary["success"]))
             db.commit()
         _print_summary(summary, args.dry_run)
         return 0 if summary["success"] else 1

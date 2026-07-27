@@ -42,7 +42,7 @@
 - Docker + docker-compose for local dev
 - Production: self-hosted on a Raspberry Pi 5 (8GB) — FastAPI on port 8011 behind a Cloudflare Tunnel at https://f1.job-joseph.com, always-on with no cold starts
 - README also documents deployment to Railway, Render, and Fly.io as managed-platform alternatives
-- Scheduled maintenance uses a **systemd timer** (`f1-sync.service` + `f1-sync.timer`, Monday 00:30 UTC / 06:00 IST, `Persistent=true`) that runs `backend/scripts/sync_results.py` to ingest new race results post-weekend.
+- Scheduled maintenance uses two **systemd timers**: `f1-sync.service` + `f1-sync.timer` (Tuesday 00:30 UTC / 06:00 IST, `Persistent=true`) runs `backend/scripts/sync_results.py` to ingest new race results post-weekend and reverify the last 3 already-synced rounds for post-race FIA amendments; `check-sync-drift.service` + `check-sync-drift.timer` (daily) runs `backend/scripts/check_sync_drift.py --fix` as a faster safety net for a completed round still missing real data.
 
 ### Data Sources
 - **Race data**: Ergast/Jolpica API (http://ergast.com/mrd/) — calendar, historical results, standings

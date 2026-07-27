@@ -275,21 +275,35 @@ curl "http://localhost:8000/api/transfers/plan?drivers=VER,NOR" | python3 -c "im
 ```bash
 cd backend && pytest
 ```
-Expect **194 passing**, 0 failures (`pytest` / `pytest-asyncio` are in `requirements.txt`).
+Expect **195 passing**, 0 failures (`pytest` / `pytest-asyncio` are in `requirements.txt`).
 
 **Sync new race results (post-race)**
 ```bash
 # Ingest any newly completed rounds from Jolpica into the app DB, recompute xP +
-# circuit profiles. Standalone — does NOT start FastAPI. Exit 0 ok / 1 on failure.
+# circuit profiles. Also rechecks the last RECHECK_WINDOW (3) already-synced
+# rounds every run, so a post-race FIA amendment (steward penalty, a DSQ
+# overturned on appeal, a reinstated position) gets picked up even after a
+# round was first marked synced. Standalone — does NOT start FastAPI.
+# Exit 0 ok / 1 on failure.
 .venv/bin/python backend/scripts/sync_results.py
 .venv/bin/python backend/scripts/sync_results.py --dry-run   # preview, no writes
+
+# Lighter, more frequent safety net: flags (and with --fix, immediately
+# remediates) any completed round not yet backed by real data — catches a
+# transient Jolpica hiccup during sync_results.py's fetch for an
+# already-run round, without waiting for next week's full sync.
+.venv/bin/python backend/scripts/check_sync_drift.py
+.venv/bin/python backend/scripts/check_sync_drift.py --fix
 ```
-On the Pi this runs automatically via the `f1-sync` systemd timer (Monday 06:00 IST).
-See the README "Post-race sync" section for install + `journalctl -u f1-sync` logs.
+On the Pi these run automatically via systemd timers: `f1-sync` weekly
+(Tuesday 06:00 IST — a day after Monday to buffer Sunday races in Americas
+time zones that can finish after Monday 00:30 UTC, e.g. Las Vegas), and
+`check-sync-drift` daily. See the README "Post-race sync" section for
+install + `journalctl -u f1-sync` / `journalctl -u f1-sync-drift` logs.
 Sync status is exposed at `GET /api/sync/status`.
 
-> **Scheduling note:** scheduled maintenance (the post-race result sync) runs as a
-> **systemd timer**, not via an in-process scheduler.
+> **Scheduling note:** scheduled maintenance (the post-race result sync and
+> the drift check) runs as **systemd timers**, not via an in-process scheduler.
 
 ---
 

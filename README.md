@@ -270,7 +270,7 @@ f1-points-engine/
 │       └── lib/
 │           ├── types.ts           # All shared TypeScript interfaces
 │           └── api.ts             # All backend API calls
-├── systemd/                       # f1-sync.service + f1-sync.timer (post-race sync)
+├── systemd/                       # f1-sync + check-sync-drift service/timer pairs (post-race sync)
 ├── TEST_PLAN.MD                   # 9-step validation guide
 ├── LEARNINGS.MD                   # 33 development learnings
 ├── ROADMAP.MD                     # Phased feature roadmap
@@ -371,22 +371,35 @@ profiles, and records a `SyncLog` row.
 
 ### How it works
 - `backend/scripts/sync_results.py` — standalone (does **not** import FastAPI).
-  Detects completed rounds from Jolpica's standings, skips rounds already stored
-  with `data_source` in (`jolpica`, `real`), fetches + scores only the new ones,
-  then rebuilds xP and `DriverCircuitProfile`. Exits `0` on success, `1` on failure.
-- `systemd/f1-sync.timer` — fires **Monday 00:30 UTC (06:00 IST)**. `Persistent=true`
-  means a sync missed while the Pi was off runs as soon as it boots.
+  Detects completed rounds from Jolpica's standings and fetches + scores any new
+  ones. It also **rechecks the last `RECHECK_WINDOW` (3) already-synced rounds**
+  every run — a fresh fetch that actually differs from what's stored (a post-race
+  FIA penalty, a DSQ overturned on appeal, a reinstated position) replaces the old
+  result instead of being skipped; an unchanged recheck is a no-op. Rebuilds xP and
+  `DriverCircuitProfile` if anything changed. Exits `0` on success, `1` on failure.
+- `systemd/f1-sync.timer` — fires **Tuesday 00:30 UTC (06:00 IST)**, one day later
+  than the Sunday race day to buffer Americas-timezone races (esp. Las Vegas) that
+  can finish after Monday 00:30 UTC. `Persistent=true` means a sync missed while
+  the Pi was off runs as soon as it boots.
+- `backend/scripts/check_sync_drift.py` — a lighter, more frequent safety net.
+  Detects any completed round *not yet* backed by real data (this can happen if
+  `sync_results.py`'s per-round fetch hit a transient Jolpica hiccup for a round
+  that already happened and fell back to synthetic placeholder data). Reports only
+  by default; `--fix` remediates immediately by invoking the same sync logic.
+  `systemd/check-sync-drift.timer` runs it daily (`--fix`) so that window is hours,
+  not up to a week.
 - `GET /api/sync/status` — reports `last_sync`, `last_round_synced`, `rounds_in_db`,
   `next_round`/`next_round_name`/`next_round_date`, and `status`
   (`up_to_date` | `behind` | `no_data`).
 
 ### Install on the Pi
 ```bash
-sudo cp systemd/f1-sync.service /etc/systemd/system/
-sudo cp systemd/f1-sync.timer /etc/systemd/system/
+sudo cp systemd/f1-sync.service systemd/f1-sync.timer /etc/systemd/system/
+sudo cp systemd/check-sync-drift.service systemd/check-sync-drift.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now f1-sync.timer
-systemctl list-timers f1-sync.timer
+sudo systemctl enable --now check-sync-drift.timer
+systemctl list-timers f1-sync.timer check-sync-drift.timer
 ```
 
 ### Operate
@@ -397,14 +410,20 @@ systemctl list-timers f1-sync.timer
 # Preview what would change without writing to the DB
 .venv/bin/python backend/scripts/sync_results.py --dry-run
 
-# Run the systemd job immediately (instead of waiting for Monday)
+# Run the systemd job immediately (instead of waiting for Tuesday)
 sudo systemctl start f1-sync.service
 
-# Check sync logs
+# Check for drift right now (report-only), or detect + fix immediately
+.venv/bin/python backend/scripts/check_sync_drift.py
+.venv/bin/python backend/scripts/check_sync_drift.py --fix
+sudo systemctl start check-sync-drift.service
+
+# Check logs
 journalctl -u f1-sync -n 50
+journalctl -u f1-sync-drift -n 50
 ```
 
-> Note: the script uses the project venv at `.venv`. If you run it by hand,
+> Note: the scripts use the project venv at `.venv`. If you run them by hand,
 > either call `.venv/bin/python …` (as above) or activate the venv first.
 
 ---

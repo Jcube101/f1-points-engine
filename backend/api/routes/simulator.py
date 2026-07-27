@@ -76,17 +76,19 @@ def _get_driver_finish_distribution(
     driver_id: int,
     db: Session,
     num_drivers: int = 20,
+    season: int = CURRENT_SEASON,
 ) -> list[float]:
     """
     Return a list of finish-position weights for positions 1..num_drivers
-    based on the driver's last 5 race results, weighted by recency (newest=50%).
+    based on the driver's last 5 race results in `season`, weighted by
+    recency (newest=50%).
 
     Returns a probability distribution (sums to 1.0).
     """
     recent = (
         db.query(FantasyPoints)
         .join(Race, Race.id == FantasyPoints.race_id)
-        .filter(FantasyPoints.driver_id == driver_id)
+        .filter(FantasyPoints.driver_id == driver_id, Race.season == season)
         .order_by(Race.round_number.desc())
         .limit(5)
         .all()
@@ -113,8 +115,12 @@ def _get_driver_finish_distribution(
         # Higher xp → concentrate probability on top positions
         boost_factor = max(0.1, xp / 20.0)  # normalise so ~20xp = 1.0
         for pos in range(num_drivers):
-            # Exponential decay favouring top positions, scaled by boost_factor
-            pos_weight = boost_factor * (0.85 ** pos)
+            # Exponential decay favouring top positions. The decay rate itself
+            # (not just a uniform scale) is driven by boost_factor, so strong
+            # recent form concentrates mass near P1 — scaling every position
+            # by the same constant would cancel out entirely after the
+            # sum-to-1 normalisation below, making every driver identical.
+            pos_weight = 0.85 ** (pos * boost_factor)
             weights[pos] += rw * pos_weight
 
     if total_rw > 0:
@@ -213,7 +219,7 @@ def title_odds(req: TitleOddsRequest, db: Session = Depends(get_db)):
     # Build finish distributions for each driver
     distributions: dict[int, list[float]] = {}
     for did in driver_ids:
-        distributions[did] = _get_driver_finish_distribution(did, db, len(driver_ids))
+        distributions[did] = _get_driver_finish_distribution(did, db, len(driver_ids), req.season)
 
     # F1 race points: P1=25, P2=18, P3=15, ... P10=1, P11+=0
     F1_PTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]

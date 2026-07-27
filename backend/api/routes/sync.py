@@ -8,11 +8,9 @@ from sqlalchemy.orm import Session
 from backend.db.database import get_db
 from backend.data.models import Race, RaceResult, SyncLog
 from backend.core.config import CURRENT_SEASON
+from backend.seed import REAL_DATA_SOURCES
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
-
-# Result rows that count as "real" (vs deterministic placeholders).
-REAL_DATA_SOURCES = ("jolpica", "real")
 
 
 @router.get("/status")

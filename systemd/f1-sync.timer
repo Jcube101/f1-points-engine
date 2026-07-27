@@ -1,9 +1,14 @@
 [Unit]
-Description=F1 Points Engine — weekly post-race sync (Monday 06:00 IST)
+Description=F1 Points Engine — weekly post-race sync (Tuesday 06:00 IST)
 Requires=f1-sync.service
 
 [Timer]
-OnCalendar=Mon *-*-* 00:30:00 UTC
+# Tuesday, not Monday: some Sunday races in Americas time zones (esp. Las
+# Vegas) run late enough locally to finish after Monday 00:30 UTC. A flat
+# one-day buffer avoids per-race timezone modelling; sync_results.py's
+# RECHECK_WINDOW (last 3 rounds re-verified every run) plus the separate
+# check-sync-drift.timer both self-heal if a round still lands late anyway.
+OnCalendar=Tue *-*-* 00:30:00 UTC
 Persistent=true
 Unit=f1-sync.service
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=F1 Points Engine — daily post-race sync drift check
+Requires=check-sync-drift.service
+
+[Timer]
+OnCalendar=*-*-* 12:00:00 UTC
+Persistent=true
+Unit=check-sync-drift.service
+
+[Install]
+WantedBy=timers.target

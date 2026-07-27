@@ -177,6 +177,11 @@ CIRCUIT_TYPES_2026: dict[str, str] = {
 # 2026 rounds that have already been completed and have real results to ingest.
 COMPLETED_2026_ROUNDS = 7
 
+# RaceResult.data_source values that represent real (non-placeholder) results.
+# store_2026_round() only treats a round as already-covered if its existing
+# row carries one of these — a 'generated' placeholder is fair game to replace.
+REAL_DATA_SOURCES = ("jolpica", "real")
+
 # ─── 2025 drivers on the grid (full season, 20 drivers) ───────────────────────
 # These are NOT in the 2026 roster but raced the full 2025 season
 DRIVERS_2025_ONLY = {"DOO", "TSU"}  # Doohan and Tsunoda not on 2026 grid
@@ -797,6 +802,27 @@ async def _fetch_2026_round(round_num: int) -> list[dict]:
     return rows
 
 
+# RaceResult fields sourced directly from Jolpica/generation — compared against
+# a fresh fetch to detect a post-race amendment (steward penalty, DSQ overturned
+# on appeal, reinstated position, etc.) to an already-real result.
+_RESULT_FIELDS = (
+    "qualifying_pos", "race_pos", "sprint_pos", "grid_pos", "dnf", "dsq",
+    "fastest_lap", "positions_gained_race", "overtakes", "q2_reached", "q3_reached",
+)
+
+
+def _result_changed(existing: RaceResult, res: dict) -> bool:
+    """True if a fresh fetch's values differ from what's already stored."""
+    fresh = {
+        "qualifying_pos": res["quali_pos"], "race_pos": res["race_pos"],
+        "sprint_pos": res["sprint_pos"], "grid_pos": res["grid"],
+        "dnf": res["dnf"], "dsq": res["dsq"], "fastest_lap": res["fastest_lap"],
+        "positions_gained_race": res["positions_gained_race"], "overtakes": res["overtakes"],
+        "q2_reached": res["q2_reached"], "q3_reached": res["q3_reached"],
+    }
+    return any(getattr(existing, f) != fresh[f] for f in _RESULT_FIELDS)
+
+
 def store_2026_round(
     db: Session,
     race_id: int,
@@ -808,9 +834,14 @@ def store_2026_round(
 
     Shared by the initial seed (`seed_2026_results`) and the post-race sync
     (`backend/scripts/sync_results.py`) so both use the exact same scoring
-    pipeline. Idempotent — skips a (race, driver) that already has a result.
+    pipeline. A pre-existing 'generated' placeholder (seeded before the round
+    actually happened) is always replaced with real data. A pre-existing REAL
+    result is replaced too, but only if the fresh fetch's values actually
+    differ — this catches a post-race FIA amendment (steward penalty, a DSQ
+    overturned on appeal, a reinstated position) landing after the round was
+    first synced. Otherwise (real + unchanged) it's a no-op skip.
     Does NOT commit; the caller commits. Returns the number of FantasyPoints
-    rows inserted.
+    rows inserted or amended.
     """
     constructor_id_map = constructor_id_map or {}
     inserted = 0
@@ -827,8 +858,13 @@ def store_2026_round(
         if not constructor_id:
             continue
 
-        if db.query(RaceResult).filter_by(race_id=race_id, driver_id=driver_id).first():
-            continue
+        existing = db.query(RaceResult).filter_by(race_id=race_id, driver_id=driver_id).first()
+        if existing:
+            if existing.data_source in REAL_DATA_SOURCES and not _result_changed(existing, res):
+                continue
+            db.query(FantasyPoints).filter_by(race_id=race_id, driver_id=driver_id).delete()
+            db.delete(existing)
+            db.flush()
 
         db.add(RaceResult(
             race_id=race_id,
